@@ -1,0 +1,21 @@
+{
+  "name": "leaf-garden-2",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "tone": "^15.0.4"
+  },
+  "devDependencies": {
+    "@vite-pwa/assets-generator": "^1.0.2",
+    "@vitejs/plugin-basic-ssl": "^1.2.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}

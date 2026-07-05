@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b1410" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Leaf Garden — sound from plants</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div id="stage" class="stage">
+      <video id="camera-preview" playsinline muted autoplay></video>
+      <canvas id="leaf-overlay" class="leaf-overlay"></canvas>
+
+      <div id="hud" class="hud">
+        <span id="hud-metric" class="hud-item">pointiness 0.00</span>
+        <span id="hud-cv" class="hud-badge">warming up…</span>
+      </div>
+
+      <!-- #bank-select (custom DAW-style picker) is mounted here by main.ts -->
+
+      <button id="controls-toggle" class="controls-toggle" type="button">controls</button>
+
+      <section id="controls" class="controls hidden" aria-label="controls">
+        <div id="knob-grid" class="knob-grid"></div>
+        <div class="control-actions">
+          <button id="randomize-button" class="round-button" title="Randomize">random</button>
+          <button id="record-button" class="round-button rec" title="Record a loop">rec</button>
+          <button id="download-button" class="round-button" title="Download last loop" disabled>save</button>
+          <button id="switch-camera-button" class="round-button" title="Switch camera" disabled>flip</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="start-overlay" class="start-overlay">
+      <div class="start-bg" aria-hidden="true">
+        <span class="glow glow-green"></span>
+        <span class="glow glow-purple"></span>
+        <svg class="ripple-arcs" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+          <g fill="none" stroke="#91008d" stroke-width="0.6" opacity="0.5">
+            <circle cx="150" cy="70" r="30" /><circle cx="150" cy="70" r="48" />
+            <circle cx="150" cy="70" r="66" /><circle cx="150" cy="70" r="84" />
+          </g>
+        </svg>
+      </div>
+
+      <div class="start-content">
+        <h1 class="start-title">
+          <span class="t-leaf">Leaf</span><span class="t-garden">Garden</span>
+        </h1>
+        <div class="start-sub">
+          <span class="wave" aria-hidden="true"></span>
+          Nature. Sound. You.
+          <span class="wave" aria-hidden="true"></span>
+        </div>
+
+        <div class="start-card">
+          <div class="feat">
+            <span class="feat-icon teal">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C7 5 5 10 6 18c8 1 12-3 13-9-1-4-3-6-7-6z" fill="currentColor"/></svg>
+            </span>
+            <span class="feat-text"><b class="teal">Round leaves</b>make spacey, ambient sound.</span>
+          </div>
+          <div class="feat">
+            <span class="feat-icon yellow">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8 7 6 12 7 20c8-1 11-6 11-12-1-3-3-5-6-6z" fill="currentColor"/></svg>
+            </span>
+            <span class="feat-text"><b class="yellow">Pointy leaves</b>make bright, high-frequency sound.</span>
+          </div>
+          <div class="feat">
+            <span class="feat-icon pink">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.7"/></svg>
+            </span>
+            <span class="feat-text"><b class="pink">Tap the screen</b>to reveal the dials — pick a sound bank, shift pitch, and shape the mood.</span>
+          </div>
+        </div>
+
+        <button id="start-button" type="button">Start <span class="arrow">→</span></button>
+
+        <div class="start-cam">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span><b>Use your camera &amp; speaker</b>Best with the rear camera</span>
+        </div>
+      </div>
+
+      <button id="about-toggle" class="about-toggle" type="button" aria-label="How to play">?</button>
+
+      <div id="about-panel" class="about-panel hidden" role="dialog" aria-label="How to play">
+        <button id="about-close" class="about-close" type="button" aria-label="Close">×</button>
+        <h2>How to play 🌿</h2>
+        <p class="about-lead">Point your phone at a plant. Hear it sing.</p>
+        <ol>
+          <li>Tap <b>Start</b> and allow the camera 📷.</li>
+          <li>Aim the back camera at leaves — round leaves sound spacey, pointy leaves sound bright.</li>
+          <li><b>Tap a leaf on screen</b> to pluck it — the music leans toward whatever you touch 👆.</li>
+          <li>Tap <b>controls</b> for the dials: sound bank, pitch, space, mood.</li>
+          <li>Hit <b>rec</b> to capture a loop and take it with you 🎙️.</li>
+        </ol>
+        <h3>Tips</h3>
+        <ul>
+          <li>🎧 Headphones or a speaker make it shine.</li>
+          <li>☀️ Good light = better leaf-tracking.</li>
+          <li>📲 Add to your home screen — runs fullscreen &amp; works offline.</li>
+        </ul>
+        <p class="about-foot">Made to be wandered with. Go find a weird-looking plant. ✨</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
