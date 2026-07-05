@@ -99,9 +99,9 @@ function onExperienceReady(result: StartFlowResult): void {
 }
 
 // --- Tap-to-play: taps bias the audio toward the tapped leaf and ripple on screen ----------
-const focus = { x: 0.5, y: 0.5, strength: 0, spik: 0 };
+const focus = { x: 0.5, y: 0.5, strength: 0, shape: 0, color: 0, hue: 120 };
 const FOCUS_DECAY_MS = 2500;
-const FOCUS_WEIGHT = 0.85; // how far a deliberate tap pushes pointiness toward the tapped leaf
+const FOCUS_WEIGHT = 0.85; // how far a deliberate tap pushes shape/color toward the tapped leaf
 
 function attachTapToPlay(): void {
   stage.addEventListener('pointerdown', (e) => {
@@ -126,7 +126,7 @@ function attachTapToPlay(): void {
 
 function onStageTap(mx: number, ny: number): void {
   const boxes = leaf.getLeafBoxes();
-  let nearest: { spikiness: number } | null = null;
+  let nearest: { shapeSignal: number; colorSignal: number; hueDeg: number } | null = null;
   let bestD = Infinity;
   for (const b of boxes) {
     const cx = b.x + b.w / 2;
@@ -137,14 +137,19 @@ function onStageTap(mx: number, ny: number): void {
       nearest = b;
     }
   }
-  // Use the tapped leaf's own pointiness when close enough; otherwise the global reading.
-  const spik = nearest && bestD < 0.05 ? nearest.spikiness : leaf.getSpikiness();
+  // Use the tapped leaf's own shape/color when close enough; otherwise the global reading.
+  const near = nearest && bestD < 0.05 ? nearest : null;
+  const shape = near ? near.shapeSignal : leaf.getShapeSignal();
+  const color = near ? near.colorSignal : leaf.getColorSignal();
+  const hue = near ? near.hueDeg : leaf.getHueDeg();
   focus.x = mx;
   focus.y = ny;
   focus.strength = 1;
-  focus.spik = spik;
-  addRipple(mx, ny, spik);
-  pluckLeafscape(spik);
+  focus.shape = shape;
+  focus.color = color;
+  focus.hue = hue;
+  addRipple(mx, ny, hue);
+  pluckLeafscape(shape);
 }
 
 function pct(v: number): string {
@@ -306,23 +311,28 @@ function tick(now: number): void {
   lastNow = now;
   if (focus.strength > 0) focus.strength = Math.max(0, focus.strength - dt / FOCUS_DECAY_MS);
 
-  const globalSpik = leaf.getSpikiness();
+  const globalShape = leaf.getShapeSignal();
+  const globalColor = leaf.getColorSignal();
+  const globalHue = leaf.getHueDeg();
   const plantPresence = leaf.getPlantPresence();
   const spatial = leaf.getSpatial();
 
-  // Blend toward the tapped leaf while the focus is active; relax to ambient as it decays.
-  const effSpik = lerp(globalSpik, focus.spik, focus.strength * FOCUS_WEIGHT);
+  // Blend both shape and color toward the tapped leaf while focus is active; relax as it decays.
+  const w = focus.strength * FOCUS_WEIGHT;
+  const effShape = lerp(globalShape, focus.shape, w);
+  const effColor = lerp(globalColor, focus.color, w);
   const effSpatial = { ...spatial, avgX: lerp(spatial.avgX, focus.x, focus.strength) };
-  updateLeafscape(effSpik, plantPresence, effSpatial, focus.strength);
+  updateLeafscape(effShape, effColor, plantPresence, effSpatial, focus.strength);
 
   render(
     {
-      spikiness: effSpik,
-      roundness: 1 - effSpik,
+      shapeSignal: effShape,
+      colorSignal: effColor,
+      hueDeg: globalHue,
       plantPresence,
       bankName: getLeafscapeState()?.bankName ?? '',
       usingCv: leaf.isUsingCv(),
-      focus: { x: focus.x, y: focus.y, strength: focus.strength },
+      focus: { x: focus.x, y: focus.y, strength: focus.strength, hue: focus.hue },
     },
     leaf,
   );

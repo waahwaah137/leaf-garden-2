@@ -139,9 +139,9 @@ class LeafscapeEngine {
     emitNote({ voice: 'sharp', velocity });
   }
 
-  update(spikiness: number, presence: number, spatial: Spatial, accent = 0): void {
+  update(shapeSignal: number, colorSignal: number, presence: number, spatial: Spatial, accent = 0): void {
     this.spatial = spatial;
-    const s = clamp(spikiness, 0, 1);
+    const s = clamp(shapeSignal, 0, 1);
 
     // Equal-power crossfade round ↔ sharp.
     const round = Math.cos((s * Math.PI) / 2);
@@ -163,6 +163,14 @@ class LeafscapeEngine {
     // Average leaf x-position → stereo pan.
     this.panner.pan.rampTo(clamp((spatial.avgX - 0.5) * 2, -1, 1), RAMP);
 
+    // Color signal → the sharp voice's echo character, modulated AROUND each bank's base
+    // delay values (orthogonal to the Space/Density dials, which only touch reverb/arp).
+    const cc = clamp(colorSignal, 0, 1);
+    const fb = clamp(this.bank.sharp.delayFeedback + (cc - 0.5) * 2 * 0.15, 0.05, 0.92);
+    const dwet = clamp(this.bank.sharp.delayWet * lerp(0.65, 1.35, cc), 0, 1);
+    this.sharpDelay.feedback.rampTo(fb, RAMP);
+    this.sharpDelay.wet.rampTo(dwet, RAMP);
+
     // Presence gate: fade the whole scene with how much plant is visible. A deliberate tap
     // (accent) lifts the floor so the influenced sound is audible even with little plant in frame.
     const gateLevel = Math.max(smoothstep(0.02, 0.16, presence), accent * 0.85);
@@ -171,10 +179,11 @@ class LeafscapeEngine {
 
   /**
    * Plays one soft note "at" a tapped leaf, routed through the live voices so it inherits the
-   * current pan/filter/reverb. Pointy taps ping the bright voice, round taps swell the pad.
+   * current pan/filter/reverb. High-form taps ping the bright voice, low-form taps swell the pad.
+   * (Color intentionally doesn't affect which voice a tap triggers.)
    */
-  pluck(spik: number): void {
-    const s = clamp(spik, 0, 1);
+  pluck(shape: number): void {
+    const s = clamp(shape, 0, 1);
     if (s >= 0.5) {
       const [lo, hi] = this.bank.sharp.register;
       const degree = lo + Math.floor(Math.random() * Math.max(1, hi - lo));
@@ -285,16 +294,17 @@ export function createLeafscape(): void {
 }
 
 export function updateLeafscape(
-  spikiness: number,
+  shapeSignal: number,
+  colorSignal: number,
   plantPresence: number,
   spatial: Spatial = NEUTRAL_SPATIAL,
   accent = 0,
 ): void {
-  engine?.update(spikiness, plantPresence, spatial, accent);
+  engine?.update(shapeSignal, colorSignal, plantPresence, spatial, accent);
 }
 
-/** Plays a soft note at a tapped leaf (spik 0=round pad swell, 1=bright ping). */
-export const pluckLeafscape = (spik: number) => engine?.pluck(spik);
+/** Plays a soft note at a tapped leaf (shape 0=low-form pad swell, 1=high-form bright ping). */
+export const pluckLeafscape = (shape: number) => engine?.pluck(shape);
 
 export function getVoiceLevels(): { round: number; sharp: number } {
   return { round: engine?.roundLevel ?? 0, sharp: engine?.sharpLevel ?? 0 };

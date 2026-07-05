@@ -1,6 +1,7 @@
-import { clamp, emaStep, lerp } from '../utils/math';
+import { AngleEma, clamp, emaStep, lerp } from '../utils/math';
 import { isCvReady } from '../vision/opencvLoader';
 import { analyzeLeafShape, type LeafBox } from '../vision/leafShapeCv';
+import { computeColorStats } from '../vision/colorStats';
 
 // Analysis resolution — higher than the old brightness sensor because edge/corner
 // detection needs spatial detail. Still tiny, so per-frame CPU stays cheap on phones.
@@ -65,8 +66,11 @@ export class LeafSensor {
   private started = false;
   private facingMode: FacingMode = 'environment';
 
-  // Derived, smoothed metrics (0-1).
-  private spikiness = 0;
+  // Derived, smoothed metrics.
+  private shapeSignal = 0; // 0-1 "form": round/compact → jagged/elongated
+  private colorSignal = 0; // 0-1 color richness
+  private hueDeg = 120; // circular-mean hue (green default), smoothed via AngleEma
+  private readonly hueEma = new AngleEma(SMOOTHING_ALPHA);
   private plantPresence = 0;
   private sensitivity = DEFAULT_SENSITIVITY;
 
@@ -243,35 +247,44 @@ export class LeafSensor {
     }
     const cornerDensity = strongEdgeCount > 0 ? cornerCount / strongEdgeCount : 0;
 
-    // Derive raw pointiness. Prefer OpenCV contour analysis (accurate) when its runtime is
-    // ready; otherwise fall back to the edge+corner heuristic so the app always responds.
-    // The Sensitivity dial then steepens the round↔sharp distinction either way.
-    let spikinessRaw = 0;
+    // Derive the raw shape ("form") + color signals. Prefer OpenCV (Hu-moment shape + per-leaf
+    // color) when its runtime is ready; otherwise fall back to the edge/corner heuristic for
+    // shape (color still works — it doesn't need OpenCV). The Sensitivity dial steepens the
+    // shape distinction either way.
+    let shapeRaw = 0;
+    let colorRaw = 0;
+    let hueRaw = this.hueDeg; // keep last hue when nothing's in frame
     this.leafBoxes = [];
     this.usingCv = false;
     if (plantPresenceRaw > 0.02) {
       const contrast = lerp(SENS_CONTRAST_MIN, SENS_CONTRAST_MAX, this.sensitivity);
       let cvOk = false;
       if (isCvReady()) {
-        const result = analyzeLeafShape(this.mask255, w, h);
+        const result = analyzeLeafShape(this.mask255, data, w, h);
         if (result) {
           this.usingCv = true;
           this.leafBoxes = result.boxes;
-          // cv spikiness is already ~0-1; apply a gentle gain + the contrast curve.
-          const scaled = clamp(result.spikiness * lerp(1.0, 1.8, this.sensitivity), 0, 1);
-          spikinessRaw = contrastCurve(scaled, contrast);
+          const scaled = clamp(result.shapeSignal * lerp(1.0, 1.8, this.sensitivity), 0, 1);
+          shapeRaw = contrastCurve(scaled, contrast);
+          colorRaw = result.colorSignal;
+          hueRaw = result.hueDeg;
           cvOk = true;
         }
       }
       if (!cvOk) {
         const gain = lerp(SENS_GAIN_MIN, SENS_GAIN_MAX, this.sensitivity);
         const blended = clamp((EDGE_WEIGHT * edgeDensity + CORNER_WEIGHT * cornerDensity) * gain, 0, 1);
-        spikinessRaw = contrastCurve(blended, contrast);
+        shapeRaw = contrastCurve(blended, contrast);
+        const cs = computeColorStats(this.isPlant, data, w, h);
+        colorRaw = cs.colorSignal;
+        hueRaw = cs.hueDeg;
       }
     }
 
     this.plantPresence = emaStep(this.plantPresence, plantPresenceRaw, SMOOTHING_ALPHA);
-    this.spikiness = emaStep(this.spikiness, spikinessRaw, SMOOTHING_ALPHA);
+    this.shapeSignal = emaStep(this.shapeSignal, shapeRaw, SMOOTHING_ALPHA);
+    this.colorSignal = emaStep(this.colorSignal, colorRaw, SMOOTHING_ALPHA);
+    this.hueDeg = this.hueEma.update(hueRaw);
 
     void edgeSum; // (kept for future tuning/telemetry)
     this.buildOverlay();
@@ -314,14 +327,19 @@ export class LeafSensor {
     ctx.drawImage(this.sampleCanvas, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT, 0, 0, targetWidth, targetHeight);
   }
 
-  /** 0 = round/smooth leaves, 1 = sharp/pointy leaves. Smoothed. */
-  getSpikiness(): number {
-    return this.spikiness;
+  /** 0-1 "form": round/compact → jagged/elongated leaves. Smoothed. */
+  getShapeSignal(): number {
+    return this.shapeSignal;
   }
 
-  /** 1 - spikiness, for convenience/display. */
-  getRoundness(): number {
-    return 1 - this.spikiness;
+  /** 0-1 color richness of the plant pixels. Smoothed. */
+  getColorSignal(): number {
+    return this.colorSignal;
+  }
+
+  /** Circular-mean hue (degrees 0-360) of the plant pixels. Smoothed. */
+  getHueDeg(): number {
+    return this.hueDeg;
   }
 
   /** Fraction of the frame that reads as plant/foliage (0-1). Smoothed. */

@@ -80,8 +80,9 @@ export function setSensorStatus(availability: SensorAvailability): void {
 }
 
 export interface DashboardState {
-  spikiness: number;
-  roundness: number;
+  shapeSignal: number;
+  colorSignal: number;
+  hueDeg: number;
   plantPresence: number;
   bankName: string;
   usingCv: boolean;
@@ -91,8 +92,9 @@ export interface DashboardState {
 export function render(state: DashboardState, leaf: LeafSensor): void {
   if (!els) return;
 
-  const shape = state.spikiness >= 0.5 ? 'sharp' : 'round';
-  els.hudMetric.textContent = `${shape} ${state.spikiness.toFixed(2)} · ${Math.round(state.plantPresence * 100)}%`;
+  // Numeric HUD kept as the only on-device calibration surface (form / hue / plant presence).
+  els.hudMetric.textContent =
+    `form ${state.shapeSignal.toFixed(2)} · hue ${Math.round(state.hueDeg)}° · ${Math.round(state.plantPresence * 100)}%`;
   els.hudCv.textContent = state.usingCv ? 'tracking' : 'heuristic';
   els.hudCv.classList.toggle('cv-on', state.usingCv);
 
