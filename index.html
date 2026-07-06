@@ -19,6 +19,9 @@
         <span id="hud-cv" class="hud-badge">warming up…</span>
       </div>
 
+      <!-- Whimsical generative poem: subtle, auto-fading, non-interactive (taps pass through). -->
+      <div id="poem" class="poem hidden" aria-live="polite"></div>
+
       <!-- #bank-select (custom DAW-style picker) is mounted here by main.ts -->
 
       <button id="controls-toggle" class="controls-toggle" type="button">controls</button>
@@ -26,6 +29,7 @@
       <section id="controls" class="controls hidden" aria-label="controls">
         <div id="knob-grid" class="knob-grid"></div>
         <div class="control-actions">
+          <button id="poem-button" class="round-button" title="Let the leaves speak" aria-pressed="false">poem</button>
           <button id="randomize-button" class="round-button" title="Randomize">random</button>
           <button id="record-button" class="round-button rec" title="Record a loop">rec</button>
           <button id="download-button" class="round-button" title="Download last loop" disabled>save</button>

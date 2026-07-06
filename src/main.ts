@@ -28,6 +28,9 @@ import { addRipple, addTrailPoint } from './ui/overlay';
 import { clamp, lerp } from './utils/math';
 import { initDashboard, render, setSensorStatus, hideControls, getKnobGrid } from './ui/dashboard';
 import { attachStartButton, type StartFlowResult } from './ui/permissions';
+import { createPoet, type PoetryInput, type Structure } from './poetry/poet';
+import { getPhase } from './env/daytime';
+import { initPoemOverlay, showPoem, hidePoem } from './ui/poemOverlay';
 
 // Photo background for the welcome screen (base-path aware; falls back to the CSS glows if
 // the file isn't present). Image lives at public/soundGardenScape_1.png.
@@ -52,12 +55,20 @@ const switchCameraButton = document.getElementById('switch-camera-button') as HT
 const randomizeButton = document.getElementById('randomize-button') as HTMLButtonElement;
 const recordButton = document.getElementById('record-button') as HTMLButtonElement;
 const downloadButton = document.getElementById('download-button') as HTMLButtonElement;
+const poemButton = document.getElementById('poem-button') as HTMLButtonElement;
+
+// Generative poem layer (opt-in, off by default — discreet, like the rest of the UI).
+const poet = createPoet();
+let poetryOn = false;
+let poemCreativity = 0.6;
+const poemStructure: Structure = 'haiku';
 
 // Start loading OpenCV immediately so contour tracking is ready by the time the user aims
 // at a plant. If it fails/times out, the sensor silently uses its edge heuristic.
 loadOpenCv().catch((err) => console.warn('OpenCV unavailable, using heuristic:', err));
 
 initDashboard();
+initPoemOverlay();
 
 switchCameraButton.addEventListener('click', async () => {
   switchCameraButton.disabled = true;
@@ -153,6 +164,32 @@ function focusAt(mx: number, ny: number): { shape: number; color: number; hue: n
   return s;
 }
 
+/** The active bank's group → the poem's "voice". Falls back to Organic. */
+function currentBankGroup(): PoetryInput['group'] {
+  const id = getLeafscapeState()?.bankId;
+  return BANKS.find((b) => b.id === id)?.group ?? 'Organic';
+}
+
+/** Generates + shows a poem for a tapped leaf, in the current bank's voice and time-of-day. */
+function speakPoem(s: { shape: number; color: number; hue: number }): void {
+  const spatial = leaf.getSpatial();
+  const input: PoetryInput = {
+    hueDeg: s.hue,
+    shape: s.shape,
+    colorSignal: s.color,
+    presence: leaf.getPlantPresence(),
+    leafCount: spatial.count,
+    group: currentBankGroup(),
+    phase: getPhase(),
+    // Deterministic per-reading: the same leaf speaks the same line; different foliage differs.
+    seed: Math.floor(s.hue * 131 + s.shape * 997 + s.color * 577 + spatial.count * 31),
+  };
+  poet
+    .generate(input, { structure: poemStructure, creativity: poemCreativity })
+    .then((lines) => showPoem(lines, s.hue))
+    .catch((err) => console.warn('poem generation failed:', err));
+}
+
 /**
  * Pointer handling for the stage: a quick tap fires a discrete pluck + ripple (as before); a
  * press-and-drag traces a glowing trail and sustains a tone that tracks the leaf under the finger,
@@ -214,6 +251,7 @@ function attachTapToPlay(): void {
       const s = focusAt(mx, ny);
       addRipple(mx, ny, s.hue);
       pluckLeafscape(s.shape);
+      if (poetryOn) speakPoem(s);
     }
     movedToDrag = false;
   };
@@ -295,6 +333,13 @@ function buildControls(): void {
       format: pct, onChange: (v) => leaf.setSensitivity(v),
     }),
   );
+  add(
+    'muse',
+    new Knob({
+      label: 'muse', min: 0, max: 1, value: poemCreativity, default: poemCreativity, color: 'var(--pink)',
+      format: pct, onChange: (v) => { poemCreativity = v; },
+    }),
+  );
 
   // Apply initial values that the engine doesn't already default to.
   leaf.setSensitivity(0.6);
@@ -311,6 +356,12 @@ function syncBankDependents(): void {
 }
 
 function wireActions(): void {
+  poemButton.addEventListener('click', () => {
+    poetryOn = !poetryOn;
+    poemButton.setAttribute('aria-pressed', String(poetryOn));
+    if (!poetryOn) hidePoem();
+  });
+
   randomizeButton.addEventListener('click', () => {
     const bank = BANKS[Math.floor(Math.random() * BANKS.length)];
     bankSelect.setValue(bank.id);
