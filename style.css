@@ -105,29 +105,105 @@ body {
 
 /* ---------- Whimsical poem overlay ---------- */
 /* Discreet, near the top (below the HUD), sized like the rest of the UI chrome. */
+/* The poem surfaces up-top like a private, decoded transmission: a left-aligned cipher of abstract
+   coded glyphs (Braille dot-patterns — a tactile cipher, a nod to the red library's Braille room)
+   receding 4 → 2 → 1 above and below a line of text, as if this message were only meant for you.
+   Text and glyphs share one colour — the complement of the on-screen hue — set per poem in JS. */
 .poem {
   position: absolute;
-  left: 50%;
-  top: calc(max(0.9rem, env(safe-area-inset-top)) + 2.6rem);
-  transform: translate(-50%, 0);
-  width: min(420px, calc(100% - 3rem));
-  text-align: center;
+  left: max(0.9rem, env(safe-area-inset-left));
+  top: calc(max(0.9rem, env(safe-area-inset-top)) + 2.2rem);
+  max-width: min(300px, calc(100% - 2rem));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* everything left-aligned, hugging the edge like code */
+  gap: 0.3em;
   pointer-events: none; /* taps pass through to keep playing the leaves */
   z-index: 3;
   /* Same font family as the rest of the UI (inherited from body); italic marks it as "voice". */
   font-style: italic;
+  font-weight: 400;
   font-size: 0.78rem;
   letter-spacing: 0.02em;
-  line-height: 1.55;
-  color: rgba(244, 255, 249, 0.92);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 10px var(--poem-glow, rgba(0, 224, 186, 0.35));
-  opacity: 1;
-  transition: opacity 0.9s ease, transform 0.9s ease;
+  line-height: 1.5;
+  color: rgba(238, 255, 250, 0.95); /* white */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 1); /* full-strength drop shadow */
+  /* AE-style soft mask wipe, TOP → BOTTOM: revealed downward, long hold, then a gentle fade. */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 33%, transparent 66%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 33%, transparent 66%);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 300%;
+  mask-size: 100% 300%;
+  -webkit-mask-position: 50% 100%;
+  mask-position: 50% 100%;
+  opacity: 0;
+  transform: translateY(4px);
 }
 
-.poem.hidden {
-  opacity: 0;
-  transform: translate(-50%, -6px);
+/* 14s total: reveal (top→bottom) → ~10s hold → fade. Keep in sync with POEM_ANIM_MS in main.ts. */
+.poem.play {
+  animation: poem-cycle 14s ease forwards;
+}
+
+@keyframes poem-cycle {
+  0% {
+    opacity: 0;
+    -webkit-mask-position: 50% 100%;
+    mask-position: 50% 100%;
+    transform: translateY(4px);
+  }
+  14% {
+    opacity: 0.95;
+    -webkit-mask-position: 50% 0%;
+    mask-position: 50% 0%;
+    transform: translateY(0);
+  }
+  86% {
+    opacity: 0.95;
+    -webkit-mask-position: 50% 0%;
+    mask-position: 50% 0%;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    -webkit-mask-position: 50% 0%;
+    mask-position: 50% 0%;
+    transform: translateY(-4px);
+  }
+}
+
+/* The coded glyph rows — same colour + stroke weight as the text, left-aligned, receding by opacity
+   only (so dot thickness stays matched to the font). */
+.poem-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.14em;
+  font-style: normal;
+  font-weight: 400;
+  color: inherit;
+}
+
+.poem-gline {
+  letter-spacing: 0.4em;
+  line-height: 1.05;
+}
+
+.poem-gline--1 {
+  opacity: 0.6;
+}
+.poem-gline--2 {
+  opacity: 0.38;
+}
+.poem-gline--3 {
+  opacity: 0.2;
+}
+
+.poem-body {
+  align-self: stretch;
+  text-align: left;
+  min-width: 0;
 }
 
 .poem-line {

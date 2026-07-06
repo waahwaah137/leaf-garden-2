@@ -8,6 +8,10 @@ const MAKEUP_GAIN_DB = 11; // overall loudness boost; the limiter below catches 
 
 export let masterBus: Tone.Gain;
 
+// The fully-mastered output as a MediaStream (post limiter). Created for the iOS speaker-routing
+// workaround below, and reused as the audio track when recording a shareable video clip.
+let outputStream: MediaStream | null = null;
+
 let started = false;
 
 /** Must be called from within a user-gesture handler (the Start button click). */
@@ -35,6 +39,7 @@ export async function initEngine(): Promise<void> {
   const rawContext = Tone.getContext().rawContext as AudioContext;
   const streamDestination = rawContext.createMediaStreamDestination();
   limiter.connect(streamDestination);
+  outputStream = streamDestination.stream;
 
   const outputEl = document.createElement('audio');
   outputEl.autoplay = true;
@@ -65,4 +70,9 @@ export function setMasterVolume(normalized: number): void {
 
 export function getDefaultVolume(): number {
   return DEFAULT_VOLUME;
+}
+
+/** The mastered audio output as a MediaStream, for muxing into a recorded video clip. */
+export function getMasterAudioStream(): MediaStream | null {
+  return outputStream;
 }

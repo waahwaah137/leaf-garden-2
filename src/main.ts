@@ -1,4 +1,4 @@
-import { getDefaultVolume, setMasterVolume } from './audio/engine';
+import { getDefaultVolume, setMasterVolume, getMasterAudioStream } from './audio/engine';
 import {
   BANKS,
   MODE_NAMES,
@@ -12,12 +12,16 @@ import {
   setSpace,
   setDensity,
   setTempo,
-  startRecording,
-  stopRecordingAndLoop,
-  isRecording,
-  getLastRecording,
   pluckLeafscape,
 } from './audio/leafscape';
+import {
+  startClip,
+  stopClip,
+  drawClipFrame,
+  isClipRecording,
+  isClipSupported,
+  shareOrDownloadClip,
+} from './ui/clipRecorder';
 import { LeafSensor } from './sensors/leafSensor';
 import { MicSensor } from './sensors/micSensor';
 import { OrientationSensor } from './sensors/orientationSensor';
@@ -31,9 +35,6 @@ import { attachStartButton, type StartFlowResult } from './ui/permissions';
 import { createPoet, type PoetryInput, type Structure } from './poetry/poet';
 import { getPhase } from './env/daytime';
 import { initPoemOverlay, showPoem, hidePoem } from './ui/poemOverlay';
-import { WalkSession } from './journey/session';
-import { composeAndSaveKeepsake, initHerbarium, openHerbarium, restoreOrFinalizeDraft } from './ui/herbarium';
-import { clearDraft, saveDraft } from './storage/herbariumStore';
 
 // Photo background for the welcome screen (base-path aware; falls back to the CSS glows if
 // the file isn't present). Image lives at public/soundGardenScape_1.png.
@@ -54,26 +55,28 @@ const orientation = new OrientationSensor();
 
 const stage = document.getElementById('stage') as HTMLElement;
 const videoEl = document.getElementById('camera-preview') as HTMLVideoElement;
+const overlayCanvas = document.getElementById('leaf-overlay') as HTMLCanvasElement;
 const switchCameraButton = document.getElementById('switch-camera-button') as HTMLButtonElement;
 const randomizeButton = document.getElementById('randomize-button') as HTMLButtonElement;
 const recordButton = document.getElementById('record-button') as HTMLButtonElement;
 const downloadButton = document.getElementById('download-button') as HTMLButtonElement;
-const poemButton = document.getElementById('poem-button') as HTMLButtonElement;
-const keepButton = document.getElementById('keep-button') as HTMLButtonElement;
-const herbariumButton = document.getElementById('herbarium-button') as HTMLButtonElement;
 
-// Generative poem layer (opt-in, off by default — discreet, like the rest of the UI).
+// Generative poem layer. Not a feature the user toggles — a coded line surfaces on its own, rarely
+// and unpredictably (every few minutes), when a plant is in frame; it lingers, then withdraws.
+// Engaging (tapping to play) dismisses it — it belongs to the still moments.
 const poet = createPoet();
-let poetryOn = false;
 let poemCreativity = 0.6;
 const poemStructure: Structure = 'haiku';
 
-// The current walk's memory (reset when a keepsake is made). Only tracked once the experience
-// starts, so time idling on the welcome screen never counts as a walk.
-let session = new WalkSession();
-let experienceStarted = false;
-const AMBIENT_SAMPLE_MS = 5000;
-let lastAmbientSample = 0;
+const POEM_ANIM_MS = 14000; // full reveal → ~10s hold → fade (must match the CSS poem-cycle duration)
+const POEM_MIN_GAP_MS = 120000; // earliest a new ambient poem may appear (2 min)
+const POEM_MAX_GAP_MS = 300000; // latest (5 min) — the actual moment is random in between
+let poemShownAt = -POEM_ANIM_MS;
+// First one comes a little sooner so the app doesn't feel empty; after that it's every few minutes.
+let nextPoemAt = performance.now() + 20000;
+
+// The last recorded video clip, kept so "save" can re-share it.
+let lastClip: Blob | null = null;
 
 // Start loading OpenCV immediately so contour tracking is ready by the time the user aims
 // at a plant. If it fails/times out, the sensor silently uses its edge heuristic.
@@ -110,36 +113,15 @@ function onExperienceReady(result: StartFlowResult): void {
     onSelect: (id) => {
       setBank(id);
       syncBankDependents();
-      recordCurrentBank();
     },
   });
   stage.appendChild(bankSelect.el);
-  initHerbarium(stage);
   buildControls();
   wireActions();
   attachTapToPlay();
   goImmersive();
 
-  // The walk begins now (not at page load). If a recent walk was interrupted, resume it; if an
-  // old one was abandoned mid-wander, it quietly became a keepsake instead.
-  session = new WalkSession();
-  experienceStarted = true;
-  recordCurrentBank();
-  void restoreOrFinalizeDraft(poet, currentBankGroup(), poemCreativity).then((resumed) => {
-    if (resumed) {
-      session = resumed;
-      recordCurrentBank();
-    }
-  });
-
   requestAnimationFrame(tick);
-}
-
-/** Notes the active bank (name + group) in the walk's memory. */
-function recordCurrentBank(): void {
-  const id = getLeafscapeState()?.bankId;
-  const bank = BANKS.find((b) => b.id === id);
-  if (bank) session.recordBank(bank.name, bank.group);
 }
 
 // --- Tap-to-play: taps bias the audio toward the tapped leaf and ripple on screen ----------
@@ -217,13 +199,40 @@ function speakPoem(s: { shape: number; color: number; hue: number }): void {
     // Deterministic per-reading: the same leaf speaks the same line; different foliage differs.
     seed: Math.floor(s.hue * 131 + s.shape * 997 + s.color * 577 + spatial.count * 31),
   };
+  poemShownAt = performance.now();
   poet
     .generate(input, { structure: poemStructure, creativity: poemCreativity })
-    .then((lines) => {
-      showPoem(lines, s.hue);
-      if (lines.length > 0) session.recordPoemLine(lines[0]);
-    })
+    .then((lines) => showPoem(lines, s.shape))
     .catch((err) => console.warn('poem generation failed:', err));
+}
+
+const poemVisible = (now: number): boolean => now - poemShownAt < POEM_ANIM_MS;
+
+function scheduleNextPoem(now: number): void {
+  nextPoemAt = now + POEM_MIN_GAP_MS + Math.random() * (POEM_MAX_GAP_MS - POEM_MIN_GAP_MS);
+}
+
+/** Engaging with the leaves dismisses a lingering poem — it's for the still moments. */
+function dismissPoemOnInteraction(now: number): void {
+  if (poemVisible(now)) {
+    hidePoem();
+    poemShownAt = -POEM_ANIM_MS;
+  }
+}
+
+/**
+ * Rare, unpredictable ambient surfacing: when the scheduled moment arrives and a plant is in frame,
+ * a poem drifts in; then the next moment is randomised minutes out. If nothing's in frame when due,
+ * we wait a little and try again rather than firing into an empty scene.
+ */
+function maybeAmbientPoem(now: number, hue: number, shape: number, color: number, presence: number): void {
+  if (now < nextPoemAt || poemVisible(now)) return;
+  if (presence < 0.05) {
+    nextPoemAt = now + 4000; // no plant yet — check back shortly
+    return;
+  }
+  speakPoem({ hue, shape, color });
+  scheduleNextPoem(now);
 }
 
 /**
@@ -241,12 +250,12 @@ function attachTapToPlay(): void {
     target.closest('#controls') ||
     target.closest('#bank-select') ||
     target.closest('.hud') ||
-    target.closest('#controls-toggle') ||
-    target.closest('#herbarium-panel');
+    target.closest('#controls-toggle');
 
   stage.addEventListener('pointerdown', (e) => {
     // Ignore taps on UI chrome — those aren't "playing the leaves".
     if (isChrome(e.target as HTMLElement)) return;
+    dismissPoemOnInteraction(performance.now()); // engaging clears a lingering poem
     activePointer = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
@@ -288,8 +297,6 @@ function attachTapToPlay(): void {
       const s = focusAt(mx, ny);
       addRipple(mx, ny, s.hue);
       pluckLeafscape(s.shape);
-      session.recordTap(s.hue, s.shape, s.color, leaf.getPlantPresence());
-      if (poetryOn) speakPoem(s);
     }
     movedToDrag = false;
   };
@@ -394,33 +401,6 @@ function syncBankDependents(): void {
 }
 
 function wireActions(): void {
-  poemButton.addEventListener('click', () => {
-    poetryOn = !poetryOn;
-    poemButton.setAttribute('aria-pressed', String(poetryOn));
-    if (!poetryOn) hidePoem();
-  });
-
-  keepButton.addEventListener('click', async () => {
-    if (!session.isMeaningful()) {
-      // Gentle nudge, reusing the poem overlay — never an error dialog.
-      showPoem(['Walk a little further — the garden is still listening.']);
-      return;
-    }
-    keepButton.disabled = true;
-    try {
-      const keepsake = await composeAndSaveKeepsake(session, currentBankGroup(), poemCreativity, poet);
-      session = new WalkSession(); // a new walk begins
-      recordCurrentBank();
-      openHerbarium(keepsake.id); // show the freshly-pressed card
-    } catch (err) {
-      console.warn('could not keep this walk:', err);
-    } finally {
-      keepButton.disabled = false;
-    }
-  });
-
-  herbariumButton.addEventListener('click', () => openHerbarium());
-
   randomizeButton.addEventListener('click', () => {
     const bank = BANKS[Math.floor(Math.random() * BANKS.length)];
     bankSelect.setValue(bank.id);
@@ -432,28 +412,39 @@ function wireActions(): void {
     knobs.density?.setValue(0.3 + Math.random() * 0.6);
   });
 
+  // Record a shareable *video* clip (camera + overlay + sound), not just audio. On stop we hold
+  // the blob so "save" can hand it to the share sheet.
+  if (!isClipSupported()) recordButton.disabled = true;
   recordButton.addEventListener('click', async () => {
-    if (isRecording()) {
+    if (isClipRecording()) {
       recordButton.classList.remove('recording');
       recordButton.textContent = 'rec';
-      await stopRecordingAndLoop();
-      downloadButton.disabled = getLastRecording() === null;
+      recordButton.disabled = true; // brief: finalizing the file
+      try {
+        lastClip = await stopClip();
+        downloadButton.disabled = false;
+        // Offer to share immediately — that's the moment the user wants it.
+        await shareOrDownloadClip(lastClip);
+      } catch (err) {
+        console.warn('could not finish clip:', err);
+      } finally {
+        recordButton.disabled = false;
+      }
     } else {
-      startRecording();
+      const mirrored = leaf.getFacingMode() === 'user';
+      const started = startClip(videoEl, overlayCanvas, getMasterAudioStream(), mirrored);
+      if (!started) {
+        console.warn('clip recording could not start');
+        return;
+      }
       recordButton.classList.add('recording');
       recordButton.textContent = 'stop';
     }
   });
 
+  // Re-share / download the last recorded clip.
   downloadButton.addEventListener('click', () => {
-    const blob = getLastRecording();
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `leaf-garden-loop-${Date.now()}.webm`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    if (lastClip) void shareOrDownloadClip(lastClip);
   });
 }
 
@@ -482,18 +473,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock();
 });
 
-// Walk-draft lifecycle: when the app is hidden mid-walk, stash a snapshot so the walk survives the
-// tab being killed. Returning promptly clears it (the in-memory session carries on); an old draft
-// is finalized into a keepsake on the next start (see restoreOrFinalizeDraft).
-document.addEventListener('visibilitychange', () => {
-  if (!experienceStarted) return;
-  if (document.visibilityState === 'hidden') {
-    if (session.isMeaningful()) saveDraft(session.snapshot()).catch(() => {});
-  } else {
-    clearDraft().catch(() => {});
-  }
-});
-
 let lastNow = 0;
 
 function tick(now: number): void {
@@ -515,11 +494,8 @@ function tick(now: number): void {
     const plantPresence = leaf.getPlantPresence();
     const spatial = leaf.getSpatial();
 
-    // Throttled ambient sample into the walk's memory (only counts when a plant is in frame).
-    if (now - lastAmbientSample > AMBIENT_SAMPLE_MS) {
-      lastAmbientSample = now;
-      session.recordAmbient(globalHue, globalShape, globalColor, plantPresence);
-    }
+    // Ambient poem: drifts in on its own when interaction has gone still and a plant is in frame.
+    maybeAmbientPoem(now, globalHue, globalShape, globalColor, plantPresence);
 
     // Blend both shape and color toward the tapped/dragged leaf while focus is active; relax as it decays.
     const w = focus.strength * FOCUS_WEIGHT;
@@ -540,6 +516,9 @@ function tick(now: number): void {
       },
       leaf,
     );
+
+    // If recording a clip, composite this fresh frame (camera + overlay) into the capture canvas.
+    if (isClipRecording()) drawClipFrame();
   } catch (err) {
     console.warn('tick() frame error (loop kept alive):', err);
   } finally {

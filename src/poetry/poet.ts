@@ -11,14 +11,27 @@ import type { DaytimePhase } from '../env/daytime';
 import { clamp, lerp } from '../utils/math';
 import { expand, mulberry32, pick, type Grammar, type Rng } from './grammar';
 import {
+  BIRDS,
+  BVERB,
   COLOR_WORDS,
+  EPOCHS,
+  FIGURES,
+  FOLK,
   FORM_JAGGED,
   FORM_ROUND,
+  FVERB,
+  LANDMARK,
+  LORE,
   PHASE_WORDS,
+  PLACE,
+  PLACE_WARM,
   REGISTERS,
   SCALE_DENSE,
   SCALE_SPARSE,
   TEMPLATES,
+  TREES,
+  TREES_WARM,
+  TSTATE,
   VIVID_HIGH,
   VIVID_LOW,
   type BankGroup,
@@ -118,17 +131,35 @@ function buildGrammar(input: PoetryInput, creativity: number): Grammar {
   const dense = input.leafCount >= 3 || input.presence > 0.25;
   const vivid = input.colorSignal >= 0.5 ? VIVID_HIGH : VIVID_LOW;
 
+  // Tasteful signal tie: a red/amber reading leans the place strand toward the park's red things
+  // (the gulmohar/flame tree, the red library, the red High Court); greens keep the canopy voice.
+  const warm = hueBucket === 'red' || hueBucket === 'amber';
+
   return {
+    // Leaf strand (camera-seeded).
     color: widen(COLOR_WORDS[hueBucket], creativity),
     form,
     vivid: widen(vivid, creativity),
     scale: widen(dense ? SCALE_DENSE : SCALE_SPARSE, creativity),
+    // Sound-bank register + time-of-day.
     rnoun: widen(reg.nouns, creativity),
     rverb: widen(reg.verbs, creativity),
     radj: widen(reg.adjs, creativity),
     rmood: widen(reg.moods, creativity),
     light: widen(phaseWords.light, creativity),
     pmood: widen(phaseWords.mood, creativity),
+    // Cubbon place strand (always present; names surface only as creativity widens).
+    tree: widen(warm ? TREES_WARM : TREES, creativity),
+    tstate: widen(TSTATE, creativity),
+    folk: widen(FOLK, creativity),
+    fverb: widen(FVERB, creativity),
+    bird: widen(BIRDS, creativity),
+    bverb: widen(BVERB, creativity),
+    landmark: widen(LANDMARK, creativity),
+    place: widen(warm ? PLACE_WARM : PLACE, creativity),
+    lore: widen(LORE, creativity),
+    figure: widen(FIGURES, creativity),
+    epoch: widen(EPOCHS, creativity),
   };
 }
 
