@@ -24,7 +24,7 @@ import { OrientationSensor } from './sensors/orientationSensor';
 import { loadOpenCv } from './vision/opencvLoader';
 import { Knob } from './ui/knob';
 import { createBankSelect, type BankSelectHandle } from './ui/bankSelect';
-import { addRipple } from './ui/overlay';
+import { addRipple, addTrailPoint } from './ui/overlay';
 import { clamp, lerp } from './utils/math';
 import { initDashboard, render, setSensorStatus, hideControls, getKnobGrid } from './ui/dashboard';
 import { attachStartButton, type StartFlowResult } from './ui/permissions';
@@ -102,29 +102,22 @@ function onExperienceReady(result: StartFlowResult): void {
 const focus = { x: 0.5, y: 0.5, strength: 0, shape: 0, color: 0, hue: 120 };
 const FOCUS_DECAY_MS = 2500;
 const FOCUS_WEIGHT = 0.85; // how far a deliberate tap pushes shape/color toward the tapped leaf
+let dragging = false; // true while a finger is held down and moving (sustains the tone; blocks focus decay)
 
-function attachTapToPlay(): void {
-  stage.addEventListener('pointerdown', (e) => {
-    const target = e.target as HTMLElement;
-    // Ignore taps on UI chrome — those aren't "playing the leaves".
-    if (
-      target.closest('#controls') ||
-      target.closest('#bank-select') ||
-      target.closest('.hud') ||
-      target.closest('#controls-toggle')
-    ) {
-      return;
-    }
-    const rect = stage.getBoundingClientRect();
-    const nx = clamp((e.clientX - rect.left) / rect.width, 0, 1);
-    const ny = clamp((e.clientY - rect.top) / rect.height, 0, 1);
-    // Front camera is CSS-mirrored, so flip x to match the boxes/overlay under the finger.
-    const mx = leaf.getFacingMode() === 'user' ? 1 - nx : nx;
-    onStageTap(mx, ny);
-  });
+const DRAG_THRESHOLD_PX = 12; // movement beyond this (before release) promotes a tap into a drag
+
+/** Maps a pointer event to a normalized (mx, ny) in the stage, respecting the front-camera flip. */
+function pointerToStage(e: PointerEvent): { mx: number; ny: number } {
+  const rect = stage.getBoundingClientRect();
+  const nx = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+  const ny = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+  // Front camera is CSS-mirrored, so flip x to match the boxes/overlay under the finger.
+  const mx = leaf.getFacingMode() === 'user' ? 1 - nx : nx;
+  return { mx, ny };
 }
 
-function onStageTap(mx: number, ny: number): void {
+/** The shape/color/hue at a normalized point: the nearest leaf's own values if close, else global. */
+function sampleAt(mx: number, ny: number): { shape: number; color: number; hue: number } {
   const boxes = leaf.getLeafBoxes();
   let nearest: { shapeSignal: number; colorSignal: number; hueDeg: number } | null = null;
   let bestD = Infinity;
@@ -137,19 +130,96 @@ function onStageTap(mx: number, ny: number): void {
       nearest = b;
     }
   }
-  // Use the tapped leaf's own shape/color when close enough; otherwise the global reading.
   const near = nearest && bestD < 0.05 ? nearest : null;
-  const shape = near ? near.shapeSignal : leaf.getShapeSignal();
-  const color = near ? near.colorSignal : leaf.getColorSignal();
-  const hue = near ? near.hueDeg : leaf.getHueDeg();
+  return {
+    shape: near ? near.shapeSignal : leaf.getShapeSignal(),
+    color: near ? near.colorSignal : leaf.getColorSignal(),
+    hue: near ? near.hueDeg : leaf.getHueDeg(),
+  };
+}
+
+/**
+ * Points the focus at a sampled location and returns what was found. `focus.strength` is set to 1;
+ * whether it then holds (drag) or decays (tap) is governed by the `dragging` flag in tick().
+ */
+function focusAt(mx: number, ny: number): { shape: number; color: number; hue: number } {
+  const s = sampleAt(mx, ny);
   focus.x = mx;
   focus.y = ny;
   focus.strength = 1;
-  focus.shape = shape;
-  focus.color = color;
-  focus.hue = hue;
-  addRipple(mx, ny, hue);
-  pluckLeafscape(shape);
+  focus.shape = s.shape;
+  focus.color = s.color;
+  focus.hue = s.hue;
+  return s;
+}
+
+/**
+ * Pointer handling for the stage: a quick tap fires a discrete pluck + ripple (as before); a
+ * press-and-drag traces a glowing trail and sustains a tone that tracks the leaf under the finger,
+ * fading out on release. The gesture chooses itself — no mode switch.
+ */
+function attachTapToPlay(): void {
+  let activePointer: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let movedToDrag = false;
+
+  const isChrome = (target: HTMLElement) =>
+    target.closest('#controls') ||
+    target.closest('#bank-select') ||
+    target.closest('.hud') ||
+    target.closest('#controls-toggle');
+
+  stage.addEventListener('pointerdown', (e) => {
+    // Ignore taps on UI chrome — those aren't "playing the leaves".
+    if (isChrome(e.target as HTMLElement)) return;
+    activePointer = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
+    movedToDrag = false;
+    try {
+      stage.setPointerCapture(e.pointerId);
+    } catch {
+      /* capture is best-effort */
+    }
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== activePointer) return;
+    if (!movedToDrag) {
+      const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+      if (dist < DRAG_THRESHOLD_PX) return;
+      movedToDrag = true;
+      dragging = true; // sustain: tick() stops decaying focus while this is true
+    }
+    const { mx, ny } = pointerToStage(e);
+    const s = focusAt(mx, ny);
+    addTrailPoint(mx, ny, s.hue);
+  });
+
+  const endGesture = (e: PointerEvent) => {
+    if (e.pointerId !== activePointer) return;
+    activePointer = null;
+    try {
+      stage.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    if (movedToDrag) {
+      // Drag: release the sustain so the tone fades out via the normal focus decay in tick().
+      dragging = false;
+    } else {
+      // Tap: discrete pluck + ripple at the touch point.
+      const { mx, ny } = pointerToStage(e);
+      const s = focusAt(mx, ny);
+      addRipple(mx, ny, s.hue);
+      pluckLeafscape(s.shape);
+    }
+    movedToDrag = false;
+  };
+
+  stage.addEventListener('pointerup', endGesture);
+  stage.addEventListener('pointercancel', endGesture);
 }
 
 function pct(v: number): string {
@@ -305,39 +375,48 @@ document.addEventListener('visibilitychange', () => {
 let lastNow = 0;
 
 function tick(now: number): void {
-  leaf.update(now);
+  // The whole frame is wrapped so a stray throw (e.g. an OpenCV binding blowing up) can never
+  // permanently kill the loop: the RAF reschedule lives in `finally` and always runs.
+  try {
+    leaf.update(now);
 
-  const dt = lastNow ? now - lastNow : 16;
-  lastNow = now;
-  if (focus.strength > 0) focus.strength = Math.max(0, focus.strength - dt / FOCUS_DECAY_MS);
+    const dt = lastNow ? now - lastNow : 16;
+    lastNow = now;
+    // While a drag is in progress the focus is *held* (sustained tone); only decay when released.
+    if (!dragging && focus.strength > 0) {
+      focus.strength = Math.max(0, focus.strength - dt / FOCUS_DECAY_MS);
+    }
 
-  const globalShape = leaf.getShapeSignal();
-  const globalColor = leaf.getColorSignal();
-  const globalHue = leaf.getHueDeg();
-  const plantPresence = leaf.getPlantPresence();
-  const spatial = leaf.getSpatial();
+    const globalShape = leaf.getShapeSignal();
+    const globalColor = leaf.getColorSignal();
+    const globalHue = leaf.getHueDeg();
+    const plantPresence = leaf.getPlantPresence();
+    const spatial = leaf.getSpatial();
 
-  // Blend both shape and color toward the tapped leaf while focus is active; relax as it decays.
-  const w = focus.strength * FOCUS_WEIGHT;
-  const effShape = lerp(globalShape, focus.shape, w);
-  const effColor = lerp(globalColor, focus.color, w);
-  const effSpatial = { ...spatial, avgX: lerp(spatial.avgX, focus.x, focus.strength) };
-  updateLeafscape(effShape, effColor, plantPresence, effSpatial, focus.strength);
+    // Blend both shape and color toward the tapped/dragged leaf while focus is active; relax as it decays.
+    const w = focus.strength * FOCUS_WEIGHT;
+    const effShape = lerp(globalShape, focus.shape, w);
+    const effColor = lerp(globalColor, focus.color, w);
+    const effSpatial = { ...spatial, avgX: lerp(spatial.avgX, focus.x, focus.strength) };
+    updateLeafscape(effShape, effColor, plantPresence, effSpatial, focus.strength);
 
-  render(
-    {
-      shapeSignal: effShape,
-      colorSignal: effColor,
-      hueDeg: globalHue,
-      plantPresence,
-      bankName: getLeafscapeState()?.bankName ?? '',
-      usingCv: leaf.isUsingCv(),
-      focus: { x: focus.x, y: focus.y, strength: focus.strength, hue: focus.hue },
-    },
-    leaf,
-  );
-
-  requestAnimationFrame(tick);
+    render(
+      {
+        shapeSignal: effShape,
+        colorSignal: effColor,
+        hueDeg: globalHue,
+        plantPresence,
+        bankName: getLeafscapeState()?.bankName ?? '',
+        usingCv: leaf.isUsingCv(),
+        focus: { x: focus.x, y: focus.y, strength: focus.strength, hue: focus.hue },
+      },
+      leaf,
+    );
+  } catch (err) {
+    console.warn('tick() frame error (loop kept alive):', err);
+  } finally {
+    requestAnimationFrame(tick);
+  }
 }
 
 // Hide controls initially (start overlay covers everything until Start).

@@ -5,10 +5,10 @@ import { computeColorStats } from '../vision/colorStats';
 
 // Analysis resolution — higher than the old brightness sensor because edge/corner
 // detection needs spatial detail. Still tiny, so per-frame CPU stays cheap on phones.
-const SAMPLE_WIDTH = 80;
-const SAMPLE_HEIGHT = 60;
-const CAPTURE_WIDTH = 320;
-const CAPTURE_HEIGHT = 240;
+const SAMPLE_WIDTH = 160;
+const SAMPLE_HEIGHT = 120;
+const CAPTURE_WIDTH = 640;
+const CAPTURE_HEIGHT = 480;
 const SAMPLE_INTERVAL_MS = 100; // ~10Hz; the getImageData + convolution is the expensive part
 
 const SMOOTHING_ALPHA = 0.12; // EMA on the derived metrics
@@ -25,6 +25,10 @@ const STRONG_EDGE = 0.2; // normalized edge magnitude counted as an actual leaf 
 const CORNER_THRESHOLD = 0.055; // Harris response (normalized) counted as a corner/spike
 const EDGE_WEIGHT = 0.5;
 const CORNER_WEIGHT = 0.5;
+
+// Ensemble blend: how far the frame shape is pulled from the lively edge/corner heuristic base
+// toward the Hu-moment refinement (0 = pure heuristic, 1 = pure Hu). Starts 50/50; tune on-device.
+const HU_WEIGHT = 0.5;
 
 // The Sensitivity slider drives BOTH a gain on the raw shape blend (subtle edge
 // differences become audible) and the steepness of the round<->sharp contrast curve.
@@ -258,23 +262,37 @@ export class LeafSensor {
     this.usingCv = false;
     if (plantPresenceRaw > 0.02) {
       const contrast = lerp(SENS_CONTRAST_MIN, SENS_CONTRAST_MAX, this.sensitivity);
+
+      // ENSEMBLE base: the 1.0-style edge/corner heuristic ALWAYS runs — it's the lively signal
+      // that visibly moves as you point at different foliage. Hu only refines it below.
+      const gain = lerp(SENS_GAIN_MIN, SENS_GAIN_MAX, this.sensitivity);
+      const heuristicBase = clamp((EDGE_WEIGHT * edgeDensity + CORNER_WEIGHT * cornerDensity) * gain, 0, 1);
+
+      // Try OpenCV (Hu-moment shape + per-leaf color). Wrapped so a blown binding can NEVER
+      // silence the app — on any throw we fall back to the heuristic base + JS color.
       let cvOk = false;
       if (isCvReady()) {
-        const result = analyzeLeafShape(this.mask255, data, w, h);
-        if (result) {
-          this.usingCv = true;
-          this.leafBoxes = result.boxes;
-          const scaled = clamp(result.shapeSignal * lerp(1.0, 1.8, this.sensitivity), 0, 1);
-          shapeRaw = contrastCurve(scaled, contrast);
-          colorRaw = result.colorSignal;
-          hueRaw = result.hueDeg;
-          cvOk = true;
+        try {
+          const result = analyzeLeafShape(this.mask255, data, w, h);
+          if (result) {
+            this.usingCv = true;
+            this.leafBoxes = result.boxes;
+            const huMean = clamp(result.shapeSignal * lerp(1.0, 1.8, this.sensitivity), 0, 1);
+            // Blend the lively heuristic base with the Hu refinement (start 50/50).
+            const ensemble = lerp(heuristicBase, huMean, HU_WEIGHT);
+            shapeRaw = contrastCurve(ensemble, contrast);
+            colorRaw = result.colorSignal;
+            hueRaw = result.hueDeg;
+            cvOk = true;
+          }
+        } catch (err) {
+          console.warn('OpenCV leaf analysis failed; using heuristic shape:', err);
+          this.leafBoxes = [];
+          this.usingCv = false;
         }
       }
       if (!cvOk) {
-        const gain = lerp(SENS_GAIN_MIN, SENS_GAIN_MAX, this.sensitivity);
-        const blended = clamp((EDGE_WEIGHT * edgeDensity + CORNER_WEIGHT * cornerDensity) * gain, 0, 1);
-        shapeRaw = contrastCurve(blended, contrast);
+        shapeRaw = contrastCurve(heuristicBase, contrast);
         const cs = computeColorStats(this.isPlant, data, w, h);
         colorRaw = cs.colorSignal;
         hueRaw = cs.hueDeg;

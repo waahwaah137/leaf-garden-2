@@ -34,6 +34,45 @@ export function addRipple(nx: number, ny: number, hue: number): void {
   ripples.push({ x: nx, y: ny, start: performance.now(), hue });
 }
 
+// --- Drag trail: a glowing polyline that follows the finger and fades behind it ----------
+interface TrailPoint {
+  x: number; // normalized 0..1
+  y: number;
+  hue: number;
+  start: number; // performance.now() ms
+}
+const trail: TrailPoint[] = [];
+const TRAIL_MS = 600; // how long a point lingers before it fades out
+
+/** Appends a point to the drag trail, coloured by the dragged leaf's hue. */
+export function addTrailPoint(nx: number, ny: number, hue: number): void {
+  trail.push({ x: nx, y: ny, hue, start: performance.now() });
+}
+
+function drawTrail(ctx: CanvasRenderingContext2D, w: number, h: number, now: number): void {
+  // Drop expired points from the front.
+  while (trail.length > 0 && now - trail[0].start > TRAIL_MS) trail.shift();
+  if (trail.length < 2) return;
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  // Draw each segment as its own stroke so alpha/width can ramp along the trail's age
+  // (older = fainter/thinner, freshest point brightest under the finger).
+  for (let i = 1; i < trail.length; i++) {
+    const a = trail[i - 1];
+    const b = trail[i];
+    const age = (now - b.start) / TRAIL_MS; // 0 = fresh, 1 = about to vanish
+    const alpha = (1 - age) * 0.85;
+    if (alpha <= 0) continue;
+    ctx.beginPath();
+    ctx.moveTo(a.x * w, a.y * h);
+    ctx.lineTo(b.x * w, b.y * h);
+    ctx.lineWidth = 2 + (1 - age) * 4;
+    ctx.strokeStyle = hueToCss(b.hue, alpha);
+    ctx.stroke();
+  }
+}
+
 function drawRipples(ctx: CanvasRenderingContext2D, w: number, h: number, now: number): void {
   for (let i = ripples.length - 1; i >= 0; i--) {
     const r = ripples[i];
@@ -114,6 +153,7 @@ export function drawTrackingOverlay(
   if (boxes.length === 0) {
     // No contour tracking (OpenCV not ready / no plant) — show the pixel mask+edge overlay.
     leaf.renderOverlay(ctx, w, h);
+    drawTrail(ctx, w, h, performance.now());
     if (focus) drawFocus(ctx, w, h, focus);
     drawRipples(ctx, w, h, performance.now());
     return;
@@ -152,6 +192,7 @@ export function drawTrackingOverlay(
   }
   ctx.globalAlpha = 1;
 
+  drawTrail(ctx, w, h, performance.now());
   if (focus) drawFocus(ctx, w, h, focus);
   drawRipples(ctx, w, h, performance.now());
 }

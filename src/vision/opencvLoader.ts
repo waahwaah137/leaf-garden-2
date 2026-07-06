@@ -18,8 +18,16 @@ export function cv(): Cv {
 }
 
 /**
- * Injects opencv.js and resolves once `cv.Mat` exists (i.e. the WASM runtime finished
- * initializing). Rejects after a timeout so callers can fall back to the JS heuristic.
+ * Injects opencv.js and resolves once the runtime module (with `.Mat` etc.) is ready. Rejects
+ * after a timeout so callers can fall back to the JS heuristic.
+ *
+ * Different opencv.js builds expose the global `cv` differently, so both shapes are handled:
+ * - Classic builds (e.g. docs.opencv.org) assign a synchronous object immediately; `.Mat` etc.
+ *   only appear after `cv.onRuntimeInitialized` fires.
+ * - Newer emscripten "MODULARIZE" async builds (e.g. @techstark/opencv-js) assign `cv` to a
+ *   *Promise* that resolves to the initialized module — `window.cv` is never the module itself
+ *   until that promise settles. We normalize by reassigning `window.cv` to the resolved module
+ *   so every other call site's `cv()` (which just reads `window.cv`) keeps working unchanged.
  */
 export function loadOpenCv(timeoutMs = 25000): Promise<void> {
   if (ready) return Promise.resolve();
@@ -28,34 +36,56 @@ export function loadOpenCv(timeoutMs = 25000): Promise<void> {
   loading = new Promise<void>((resolve, reject) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
-    const start = Date.now();
+    let settled = false;
 
-    const settleWhenReady = () => {
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error('opencv.js runtime did not initialize in time'));
+    }, timeoutMs);
+
+    const settle = (resolvedCv?: Cv) => {
+      if (settled) return;
+      if (resolvedCv) w.cv = resolvedCv; // normalize: window.cv becomes the real module, not the promise
       if (w.cv && w.cv.Mat) {
+        settled = true;
+        clearTimeout(timer);
         ready = true;
         resolve();
-        return true;
       }
-      return false;
     };
 
     const poll = () => {
-      if (settleWhenReady()) return;
-      if (Date.now() - start > timeoutMs) {
-        reject(new Error('opencv.js runtime did not initialize in time'));
-        return;
-      }
-      setTimeout(poll, 60);
+      if (settled) return;
+      settle();
+      if (!settled) setTimeout(poll, 60);
     };
 
     const script = document.createElement('script');
     script.src = `${import.meta.env.BASE_URL}vendor/opencv.js`;
     script.async = true;
-    script.onerror = () => reject(new Error('Failed to load opencv.js'));
+    script.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(new Error('Failed to load opencv.js'));
+    };
     script.onload = () => {
-      // The docs build exposes a global `cv`; Mat is only defined after runtime init.
-      if (w.cv && typeof w.cv === 'object') {
-        w.cv.onRuntimeInitialized = () => settleWhenReady();
+      const cvGlobal = w.cv;
+      if (cvGlobal && typeof cvGlobal.then === 'function') {
+        cvGlobal.then(
+          (resolvedCv: Cv) => settle(resolvedCv),
+          (err: unknown) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            reject(err instanceof Error ? err : new Error(String(err)));
+          },
+        );
+        return;
+      }
+      if (cvGlobal && typeof cvGlobal === 'object') {
+        cvGlobal.onRuntimeInitialized = () => settle();
       }
       poll();
     };
