@@ -60,20 +60,20 @@ const switchCameraButton = document.getElementById('switch-camera-button') as HT
 const randomizeButton = document.getElementById('randomize-button') as HTMLButtonElement;
 const recordButton = document.getElementById('record-button') as HTMLButtonElement;
 const downloadButton = document.getElementById('download-button') as HTMLButtonElement;
+const poemButton = document.getElementById('poem-button') as HTMLButtonElement;
 
-// Generative poem layer. Not a feature the user toggles — a coded line surfaces on its own, rarely
-// and unpredictably (every few minutes), when a plant is in frame; it lingers, then withdraws.
-// Engaging (tapping to play) dismisses it — it belongs to the still moments.
+// Generative poem layer, gated by the "poem" pill. When on, a deliberate tap summons a coded line,
+// and one also drifts in on its own during still moments — rare and unpredictable.
 const poet = createPoet();
+let poetryOn = false;
 let poemCreativity = 0.6;
 const poemStructure: Structure = 'haiku';
 
 const POEM_ANIM_MS = 14000; // full reveal → ~10s hold → fade (must match the CSS poem-cycle duration)
-const POEM_MIN_GAP_MS = 120000; // earliest a new ambient poem may appear (2 min)
-const POEM_MAX_GAP_MS = 300000; // latest (5 min) — the actual moment is random in between
+const POEM_MIN_GAP_MS = 90000; // earliest a new *ambient* poem may drift in (1.5 min)
+const POEM_MAX_GAP_MS = 240000; // latest (4 min) — the actual moment is random in between
 let poemShownAt = -POEM_ANIM_MS;
-// First one comes a little sooner so the app doesn't feel empty; after that it's every few minutes.
-let nextPoemAt = performance.now() + 20000;
+let nextPoemAt = performance.now() + POEM_MIN_GAP_MS;
 
 // The last recorded video clip, kept so "save" can re-share it.
 let lastClip: Blob | null = null;
@@ -212,21 +212,19 @@ function scheduleNextPoem(now: number): void {
   nextPoemAt = now + POEM_MIN_GAP_MS + Math.random() * (POEM_MAX_GAP_MS - POEM_MIN_GAP_MS);
 }
 
-/** Engaging with the leaves dismisses a lingering poem — it's for the still moments. */
-function dismissPoemOnInteraction(now: number): void {
-  if (poemVisible(now)) {
-    hidePoem();
-    poemShownAt = -POEM_ANIM_MS;
-  }
+/** A deliberate tap summons a poem when the layer is on — unless one is already lingering. */
+function poemOnTap(s: { shape: number; color: number; hue: number }): void {
+  if (!poetryOn || poemVisible(performance.now())) return;
+  speakPoem(s);
+  scheduleNextPoem(performance.now()); // a tapped poem also pushes the ambient timer out
 }
 
 /**
- * Rare, unpredictable ambient surfacing: when the scheduled moment arrives and a plant is in frame,
- * a poem drifts in; then the next moment is randomised minutes out. If nothing's in frame when due,
- * we wait a little and try again rather than firing into an empty scene.
+ * Rare, unpredictable ambient surfacing (only when the layer is on): at the scheduled moment, if a
+ * plant is in frame, a poem drifts in; then the next moment is randomised minutes out.
  */
 function maybeAmbientPoem(now: number, hue: number, shape: number, color: number, presence: number): void {
-  if (now < nextPoemAt || poemVisible(now)) return;
+  if (!poetryOn || now < nextPoemAt || poemVisible(now)) return;
   if (presence < 0.05) {
     nextPoemAt = now + 4000; // no plant yet — check back shortly
     return;
@@ -255,7 +253,6 @@ function attachTapToPlay(): void {
   stage.addEventListener('pointerdown', (e) => {
     // Ignore taps on UI chrome — those aren't "playing the leaves".
     if (isChrome(e.target as HTMLElement)) return;
-    dismissPoemOnInteraction(performance.now()); // engaging clears a lingering poem
     activePointer = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
@@ -297,6 +294,7 @@ function attachTapToPlay(): void {
       const s = focusAt(mx, ny);
       addRipple(mx, ny, s.hue);
       pluckLeafscape(s.shape);
+      poemOnTap(s);
     }
     movedToDrag = false;
   };
@@ -401,6 +399,16 @@ function syncBankDependents(): void {
 }
 
 function wireActions(): void {
+  poemButton.addEventListener('click', () => {
+    poetryOn = !poetryOn;
+    poemButton.setAttribute('aria-pressed', String(poetryOn));
+    if (poetryOn) {
+      nextPoemAt = performance.now() + 5000; // turning it on: a poem drifts in soon if you hold still
+    } else {
+      hidePoem();
+    }
+  });
+
   randomizeButton.addEventListener('click', () => {
     const bank = BANKS[Math.floor(Math.random() * BANKS.length)];
     bankSelect.setValue(bank.id);
