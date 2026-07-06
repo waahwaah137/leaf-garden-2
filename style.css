@@ -32,6 +32,12 @@ body {
   width: 100%;
   height: 100%;
   background: #000;
+  /* Without this, touch drags get hijacked by the browser's own pan/scroll gesture recognizer
+     after ~10-15px of movement (it fires pointercancel and stops delivering pointermove), so
+     drag-to-play never engages past a tap. Same reasoning as .knob-svg below. */
+  touch-action: none;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 #camera-preview {

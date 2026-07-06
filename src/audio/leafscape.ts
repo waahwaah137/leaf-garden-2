@@ -1,7 +1,7 @@
 import * as Tone from 'tone';
 import { clamp, lerp, smoothstep } from '../utils/math';
 import { masterBus } from './engine';
-import { BANKS, bankById, type Bank } from './banks';
+import { bankById, type Bank } from './banks';
 import { degreeToMidi, makeScale, type ModeName, type ScaleDef } from './scales';
 
 const RAMP = 0.25; // seconds — smoothing for shape-driven parameter changes
@@ -48,7 +48,7 @@ class LeafscapeEngine {
   private sharpHP!: Tone.Filter;
 
   // State
-  private bank: Bank = BANKS[0];
+  private bank: Bank = bankById('glass');
   private mode: ModeName = this.bank.mode;
   private scale: ScaleDef = makeScale(this.bank.rootMidi, this.bank.mode);
   private transpose = 0; // semitones (Pitch dial)
