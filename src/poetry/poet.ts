@@ -52,7 +52,7 @@ const HAIKU_TARGET = [5, 7, 5];
 const HAIKU_CANDIDATES = 6; // pick the closest-to-5-7-5 of this many deterministic attempts
 
 /** Buckets a hue angle into a coarse colour family; very-desaturated frames read as "pale". */
-function bucketHue(hueDeg: number, colorSignal: number): HueBucket {
+export function bucketHue(hueDeg: number, colorSignal: number): HueBucket {
   if (colorSignal < 0.12) return 'pale';
   const h = ((hueDeg % 360) + 360) % 360;
   if (h < 15 || h >= 345) return 'red';
