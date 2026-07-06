@@ -36,12 +36,6 @@ import { createPoet, type PoetryInput, type Structure } from './poetry/poet';
 import { getPhase } from './env/daytime';
 import { initPoemOverlay, showPoem, hidePoem } from './ui/poemOverlay';
 
-// Photo background for the welcome screen (base-path aware; falls back to the CSS glows if
-// the file isn't present). Image lives at public/soundGardenScape_1.png.
-document
-  .getElementById('start-overlay')
-  ?.style.setProperty('--start-photo', `url(${import.meta.env.BASE_URL}soundGardenScape_1.png)`);
-
 // "?" about / how-to panel on the welcome screen.
 const aboutPanel = document.getElementById('about-panel');
 document.getElementById('about-toggle')?.addEventListener('click', () => aboutPanel?.classList.toggle('hidden'));

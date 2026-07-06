@@ -39,54 +39,21 @@
     </div>
 
     <div id="start-overlay" class="start-overlay">
-      <div class="start-bg" aria-hidden="true">
-        <span class="glow glow-green"></span>
-        <span class="glow glow-purple"></span>
-        <svg class="ripple-arcs" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
-          <g fill="none" stroke="#91008d" stroke-width="0.6" opacity="0.5">
-            <circle cx="150" cy="70" r="30" /><circle cx="150" cy="70" r="48" />
-            <circle cx="150" cy="70" r="66" /><circle cx="150" cy="70" r="84" />
-          </g>
-        </svg>
-      </div>
-
       <div class="start-content">
-        <h1 class="start-title">
-          <span class="t-leaf">Leaf</span><span class="t-garden">Garden</span>
-        </h1>
-        <div class="start-sub">
-          <span class="wave" aria-hidden="true"></span>
-          Nature. Sound. You.
-          <span class="wave" aria-hidden="true"></span>
-        </div>
+        <span class="start-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="6" />
+            <circle cx="32" cy="32" r="15" fill="none" stroke-width="1.4" opacity="0.7" />
+            <circle cx="32" cy="32" r="24" fill="none" stroke-width="1.1" opacity="0.4" />
+            <circle cx="32" cy="32" r="31" fill="none" stroke-width="0.9" opacity="0.2" />
+          </svg>
+        </span>
 
-        <div class="start-card">
-          <div class="feat">
-            <span class="feat-icon teal">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C7 5 5 10 6 18c8 1 12-3 13-9-1-4-3-6-7-6z" fill="currentColor"/></svg>
-            </span>
-            <span class="feat-text"><b class="teal">Every leaf's shape</b>bends the sound around it.</span>
-          </div>
-          <div class="feat">
-            <span class="feat-icon yellow">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8 7 6 12 7 20c8-1 11-6 11-12-1-3-3-5-6-6z" fill="currentColor"/></svg>
-            </span>
-            <span class="feat-text"><b class="yellow">Every leaf's color</b>paints in its own texture.</span>
-          </div>
-          <div class="feat">
-            <span class="feat-icon pink">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.7"/></svg>
-            </span>
-            <span class="feat-text"><b class="pink">Tap the screen</b>to reveal the dials — pick a sound bank, shift pitch, and shape the mood.</span>
-          </div>
-        </div>
+        <p class="start-lead">Point at anything green. It's yours to play.</p>
 
-        <button id="start-button" type="button">Start <span class="arrow">→</span></button>
+        <button id="start-button" type="button">Enter <span class="arrow">→</span></button>
 
-        <div class="start-cam">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-          <span><b>Use your camera &amp; speaker</b>Best with the rear camera</span>
-        </div>
+        <p class="start-cam">uses your camera &amp; speaker · best with the rear camera</p>
       </div>
 
       <button id="about-toggle" class="about-toggle" type="button" aria-label="How to play">?</button>
