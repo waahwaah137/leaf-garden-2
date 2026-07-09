@@ -31,7 +31,7 @@ export default defineConfig({
         // opencv.js (full build, incl. moments/HuMoments/matchShapes) is ~12.7MB; raise the
         // cache size limit with headroom so it precaches for offline use.
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,wasm,svg,png,jpg,jpeg,ico}'],
+        globPatterns: ['**/*.{js,css,html,wasm,svg,png,jpg,jpeg,ico,ttf}'],
       },
       devOptions: { enabled: true, type: 'module' },
     }),

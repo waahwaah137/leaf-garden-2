@@ -183,10 +183,12 @@ body {
   font-style: normal;
   font-weight: 400;
   color: inherit;
+  /* the data-matrix cipher renders in the Glipervelz dingbat (falls back to mono until it loads) */
+  font-family: 'Glipervelz', ui-monospace, monospace;
 }
 
 .poem-gline {
-  letter-spacing: 0.4em;
+  letter-spacing: 0.3em;
   line-height: 1.05;
 }
 
@@ -208,6 +210,248 @@ body {
 
 .poem-line {
   margin: 0.05em 0;
+}
+
+/* ---------- Random button (small, lower-centre "fingerprint" spot) ---------- */
+.random-btn {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(0.8rem, env(safe-area-inset-bottom)) + 4.4rem); /* clears the controls-toggle */
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  pointer-events: none; /* children opt back in, so the stage stays tappable around it */
+  transition: opacity 0.25s ease;
+}
+
+.random-btn.rb-hidden {
+  opacity: 0;
+  visibility: hidden; /* hidden while the controls drawer is open */
+}
+
+.random-btn__name {
+  min-height: 1em;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--teal);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.random-btn__name.show {
+  opacity: 1;
+}
+
+.random-btn__dial {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(2, 12, 8, 0.75), rgba(1, 4, 3, 0.55));
+  cursor: pointer;
+  pointer-events: auto;
+}
+.random-btn__dial:disabled {
+  cursor: default;
+}
+
+.random-btn__ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* progress starts at 12 o'clock */
+}
+.random-btn__track {
+  fill: none;
+  stroke: rgba(112, 16, 101, 0.55); /* purple base */
+  stroke-width: 5;
+}
+.random-btn__prog {
+  fill: none;
+  stroke: #01ddcd; /* teal cooldown fill */
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.random-btn__stars {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #01ddcd;
+  pointer-events: none;
+}
+.random-btn__stars svg {
+  width: 42px;
+  height: 42px;
+  overflow: visible;
+}
+.random-btn__star {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rb-twinkle 3s ease-in-out infinite;
+}
+.random-btn__star:nth-child(2) {
+  animation-delay: 0.7s;
+}
+.random-btn__star:nth-child(3) {
+  animation-delay: 1.4s;
+}
+.random-btn__star:nth-child(4) {
+  animation-delay: 2s;
+}
+@keyframes rb-twinkle {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+.random-btn__dial.rolled .random-btn__stars {
+  animation: rb-burst 0.5s ease;
+}
+@keyframes rb-burst {
+  0% { transform: scale(0.8); }
+  55% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+.random-btn.pulse .random-btn__dial {
+  animation: rb-pulse 1.1s ease;
+}
+@keyframes rb-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(1, 221, 205, 0); }
+  50% { box-shadow: 0 0 18px 3px rgba(1, 221, 205, 0.55); }
+}
+
+/* The pin below — pink-ringed yellow location pin (pin the current sound). */
+.pin-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+}
+.pin-btn svg {
+  width: 34px;
+  height: 34px;
+}
+.pin-btn:active {
+  transform: scale(0.92);
+}
+
+/* ---------- Pinned-sounds list inside the controls drawer ---------- */
+.pins-panel {
+  margin-top: 0.7rem;
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.pins-panel.hidden {
+  display: none;
+}
+
+.pins-empty {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 0.6rem 0;
+}
+
+.pinned-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 224, 186, 0.25);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pinned-item__play {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+.pinned-item__dot {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: hsl(var(--pin-hue, 160), 78%, 62%);
+}
+.pinned-item__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-item__del {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.pinned-item__del:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+/* Brief "pinned ✓" confirmation toast (shared, minimal). */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 2.5rem);
+  transform: translate(-50%, 8px);
+  z-index: 9;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: rgba(0, 224, 186, 0.16);
+  border: 1px solid rgba(0, 224, 186, 0.5);
+  color: var(--teal);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .round-button[aria-pressed="true"] {
@@ -479,18 +723,11 @@ body {
 /* ---------- Start overlay (dark, branded) ---------- */
 /* Minimal, name-agnostic front cover: a small teal ripple-mark, one line, an Enter pill — on a
    deep-green→black gradient, in the same calm dark/teal/sans language as the app UI. */
+/* ---------- Front cover ("ListenGreen"): bright teal field, flame, ENTER, scrolling band ---------- */
 .start-overlay {
   position: fixed;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  /* deep green fading up out of black, with a soft teal breath near the top */
-  background:
-    radial-gradient(90% 60% at 50% 8%, rgba(0, 224, 186, 0.1), transparent 60%),
-    radial-gradient(130% 100% at 50% -8%, #0e3a2a 0%, #082017 32%, #030907 68%, #010503 100%),
-    #010503;
+  background: #00e1b9; /* bright teal-green field */
   z-index: 10;
   overflow: hidden;
   transition: opacity 0.4s ease;
@@ -501,82 +738,129 @@ body {
   pointer-events: none;
 }
 
-.start-content {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 340px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.9rem; /* generous, airy spacing */
+.cover {
+  position: absolute;
+  inset: 0;
 }
 
-/* Small abstract teal mark — concentric rings, echoing the tap ripples. */
-.start-mark {
-  width: 76px;
-  height: 76px;
-  color: var(--teal);
-  filter: drop-shadow(0 0 16px rgba(0, 224, 186, 0.35));
-}
-
-.start-mark svg {
-  width: 100%;
-  height: 100%;
-  fill: currentColor;
-  stroke: currentColor;
-}
-
-.start-lead {
-  margin: 0;
-  font-size: 1.02rem;
-  font-weight: 300;
-  line-height: 1.5;
-  letter-spacing: 0.01em;
-  color: var(--text);
-}
-
-#start-button {
-  width: min(260px, 80%);
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--teal);
-  background: rgba(0, 224, 186, 0.12);
-  border: 1px solid rgba(0, 224, 186, 0.55);
+/* The flame — a vertical teal→pink capsule near the top-centre, breathing organically in place. */
+.cover-flame {
+  position: absolute;
+  top: 9%;
+  left: 50%;
+  width: min(96px, 13vw);
+  height: 26%;
+  transform: translateX(-50%);
+  transform-origin: center bottom;
   border-radius: 999px;
-  padding: 0.9rem 1rem;
-  cursor: pointer;
-  box-shadow: 0 0 28px rgba(0, 224, 186, 0.16);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  background: linear-gradient(to bottom, #00e0ba 0%, #00e0ba 52%, #ff3483 100%);
+  filter: drop-shadow(0 0 26px rgba(255, 52, 131, 0.45)) drop-shadow(0 0 12px rgba(0, 224, 186, 0.35));
+  animation: flame-breathe 2.6s ease-in-out infinite;
 }
 
-#start-button:hover {
-  background: rgba(0, 224, 186, 0.2);
-  box-shadow: 0 0 34px rgba(0, 224, 186, 0.28);
+@keyframes flame-breathe {
+  0%, 100% {
+    transform: translateX(-50%) scale(1, 1) skewX(0deg);
+  }
+  30% {
+    transform: translateX(-50%) scale(1.05, 1.08) skewX(-2deg);
+  }
+  55% {
+    transform: translateX(-50%) scale(0.97, 1.04) skewX(2deg);
+  }
+  80% {
+    transform: translateX(-50%) scale(1.03, 0.98) skewX(-1deg);
+  }
 }
 
-#start-button .arrow {
+/* ENTER — black pill, teal label, white stroke, drop shadow + a soft pulsing glow. */
+#start-button.cover-enter {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 62%;
+  padding: 1.05rem 2rem;
+  font-family: inherit;
+  font-size: 1.5rem;
   font-weight: 600;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em; /* balance the trailing letter-spacing */
+  color: #00e4b9;
+  background: #010302;
+  border: 5px solid #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 rgba(0, 228, 185, 0);
+  animation: enter-glow 2.6s ease-in-out infinite;
 }
 
-#start-button:disabled {
-  opacity: 0.6;
+@keyframes enter-glow {
+  0%, 100% {
+    box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.5), 0 0 14px 1px rgba(0, 228, 185, 0.25);
+  }
+  50% {
+    box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.5), 0 0 30px 4px rgba(0, 228, 185, 0.55);
+  }
+}
+
+#start-button.cover-enter:disabled {
+  opacity: 0.75;
   cursor: default;
 }
 
-.start-cam {
+.cover-tagline {
+  position: absolute;
+  top: 59%;
+  left: 50%;
+  transform: translateX(-50%);
   margin: 0;
-  font-size: 0.72rem;
+  width: 90%;
+  text-align: center;
+  color: #010302;
+  font-weight: 600;
+  font-size: clamp(1rem, 4.6vw, 1.35rem);
+  line-height: 1.4;
   letter-spacing: 0.02em;
-  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+/* Light band near the bottom; the camera line scrolls slowly across it. */
+.cover-band {
+  position: absolute;
+  left: -4%;
+  right: -4%;
+  bottom: 9%;
+  height: 3rem;
+  background: #e5e5e5;
+  transform: rotate(-3deg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.cover-cam-track {
+  display: flex;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  animation: cam-scroll 22s linear infinite;
+}
+
+.cover-cam-track span {
+  padding-right: 1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2a2a2a;
+}
+
+@keyframes cam-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 /* ---------- "?" about / how-to panel ---------- */

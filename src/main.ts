@@ -25,6 +25,7 @@ import {
 import { LeafSensor } from './sensors/leafSensor';
 import { MicSensor } from './sensors/micSensor';
 import { OrientationSensor } from './sensors/orientationSensor';
+import { FidgetSensor } from './sensors/fidget';
 import { loadOpenCv } from './vision/opencvLoader';
 import { Knob } from './ui/knob';
 import { createBankSelect, type BankSelectHandle } from './ui/bankSelect';
@@ -35,6 +36,11 @@ import { attachStartButton, type StartFlowResult } from './ui/permissions';
 import { createPoet, type PoetryInput, type Structure } from './poetry/poet';
 import { getPhase } from './env/daytime';
 import { initPoemOverlay, showPoem, hidePoem } from './ui/poemOverlay';
+import { initRandomButton, pulseRandomButton, setRandomButtonHidden } from './ui/randomButton';
+import { initPinnedDrawer, togglePinnedDrawer } from './ui/pinnedDrawer';
+import type { PresetConfig, Preset, Specimen } from './presets/preset';
+import { savePreset, countPresets } from './presets/presetStore';
+import { showToast } from './ui/toast';
 
 // "?" about / how-to panel on the welcome screen.
 const aboutPanel = document.getElementById('about-panel');
@@ -46,12 +52,13 @@ const leaf = new LeafSensor();
 // iOS output on the main speaker), but the sound is driven entirely by leaf shape now.
 const mic = new MicSensor();
 const orientation = new OrientationSensor();
+const fidget = new FidgetSensor(); // boredom + motion → the fidget wheel emerges
 
 const stage = document.getElementById('stage') as HTMLElement;
 const videoEl = document.getElementById('camera-preview') as HTMLVideoElement;
 const overlayCanvas = document.getElementById('leaf-overlay') as HTMLCanvasElement;
 const switchCameraButton = document.getElementById('switch-camera-button') as HTMLButtonElement;
-const randomizeButton = document.getElementById('randomize-button') as HTMLButtonElement;
+const pinsButton = document.getElementById('pins-button') as HTMLButtonElement;
 const recordButton = document.getElementById('record-button') as HTMLButtonElement;
 const downloadButton = document.getElementById('download-button') as HTMLButtonElement;
 const poemButton = document.getElementById('poem-button') as HTMLButtonElement;
@@ -79,6 +86,16 @@ loadOpenCv().catch((err) => console.warn('OpenCV unavailable, using heuristic:',
 initDashboard();
 initPoemOverlay();
 
+// Load the Glipervelz-Origy dingbat for the poem's data-matrix cipher. FontFace API is base-aware
+// (works under /leaf-garden-2/ on Pages) and sidesteps the space in the filename.
+if (typeof FontFace !== 'undefined') {
+  const glipervelz = new FontFace('Glipervelz', `url("${import.meta.env.BASE_URL}Glipervelz-Origy%20FULL.ttf")`);
+  glipervelz
+    .load()
+    .then((f) => document.fonts.add(f))
+    .catch((err) => console.warn('Glipervelz font unavailable:', err));
+}
+
 switchCameraButton.addEventListener('click', async () => {
   switchCameraButton.disabled = true;
   try {
@@ -91,10 +108,59 @@ switchCameraButton.addEventListener('click', async () => {
   }
 });
 
-attachStartButton({ light: leaf, mic, orientation, videoEl }, onExperienceReady);
+attachStartButton({ light: leaf, mic, orientation, fidget, videoEl }, onExperienceReady);
 
 const knobs: Record<string, Knob> = {};
 let bankSelect: BankSelectHandle;
+let pinnedCount = 0;
+
+/** Reads the live controls into a Preset config (mirrors the knobs + active bank). */
+function captureCurrentConfig(): PresetConfig {
+  return {
+    bankId: getLeafscapeState()?.bankId ?? BANKS[0].id,
+    volume: knobs.volume?.getValue() ?? getDefaultVolume(),
+    mode: knobs.mode?.getValue() ?? 0,
+    pitch: knobs.pitch?.getValue() ?? 0,
+    freq: knobs.freq?.getValue() ?? 0.5,
+    space: knobs.space?.getValue() ?? 0.5,
+    density: knobs.density?.getValue() ?? 0.6,
+    tempo: knobs.tempo?.getValue() ?? 74,
+    sens: knobs.sens?.getValue() ?? 0.6,
+  };
+}
+
+/** Applies a Preset config to the live engine + knobs (bank first, then each dial fires its setter). */
+function applyConfig(cfg: PresetConfig): void {
+  bankSelect?.setValue(cfg.bankId);
+  setBank(cfg.bankId);
+  syncBankDependents();
+  knobs.volume?.setValue(cfg.volume, true);
+  knobs.mode?.setValue(cfg.mode, true);
+  knobs.pitch?.setValue(cfg.pitch, true);
+  knobs.freq?.setValue(cfg.freq, true);
+  knobs.space?.setValue(cfg.space, true);
+  knobs.density?.setValue(cfg.density, true);
+  knobs.tempo?.setValue(cfg.tempo, true);
+  knobs.sens?.setValue(cfg.sens, true);
+}
+
+/** Pins the currently-sounding config (the locked specimen, incl. any live tweaks) + confirms. */
+async function pinSpecimen(s: Specimen): Promise<void> {
+  const preset: Preset = {
+    id: String(Date.now()),
+    config: captureCurrentConfig(), // pin exactly what's playing
+    name: s.name,
+    hueDeg: s.hueDeg,
+    createdAt: Date.now(),
+  };
+  try {
+    await savePreset(preset);
+    pinnedCount += 1;
+    showToast(`pinned ✓ · ${pinnedCount}`);
+  } catch (err) {
+    console.warn('could not pin preset:', err);
+  }
+}
 
 function onExperienceReady(result: StartFlowResult): void {
   setSensorStatus(result);
@@ -113,6 +179,28 @@ function onExperienceReady(result: StartFlowResult): void {
   buildControls();
   wireActions();
   attachTapToPlay();
+
+  // The small random button (roll → apply live; the pin below keeps the current sound).
+  initRandomButton(stage, {
+    bankIds: BANKS.map((b) => b.id),
+    onApply: (s) => applyConfig(s.config),
+    onPin: (s) => void pinSpecimen(s),
+  });
+  // The pins list inside the controls drawer (tap a row to replay).
+  const pinsPanel = document.getElementById('pins-panel');
+  if (pinsPanel) initPinnedDrawer(pinsPanel, (cfg) => applyConfig(cfg));
+
+  // Hide the floating random button while the controls drawer is open (they'd overlap).
+  const controlsEl = document.getElementById('controls');
+  if (controlsEl) {
+    const sync = () => setRandomButtonHidden(!controlsEl.classList.contains('hidden'));
+    new MutationObserver(sync).observe(controlsEl, { attributes: true, attributeFilter: ['class'] });
+    sync();
+  }
+  countPresets()
+    .then((n) => (pinnedCount = n))
+    .catch(() => {});
+
   goImmersive();
 
   requestAnimationFrame(tick);
@@ -196,7 +284,7 @@ function speakPoem(s: { shape: number; color: number; hue: number }): void {
   poemShownAt = performance.now();
   poet
     .generate(input, { structure: poemStructure, creativity: poemCreativity })
-    .then((lines) => showPoem(lines, s.shape))
+    .then((lines) => showPoem(lines))
     .catch((err) => console.warn('poem generation failed:', err));
 }
 
@@ -242,10 +330,12 @@ function attachTapToPlay(): void {
     target.closest('#controls') ||
     target.closest('#bank-select') ||
     target.closest('.hud') ||
-    target.closest('#controls-toggle');
+    target.closest('#controls-toggle') ||
+    target.closest('.fidget-wheel');
 
   stage.addEventListener('pointerdown', (e) => {
-    // Ignore taps on UI chrome — those aren't "playing the leaves".
+    fidget.noticeInteraction(); // any touch resets the boredom clock
+    // Ignore taps on UI chrome (and the fidget wheel) — those aren't "playing the leaves".
     if (isChrome(e.target as HTMLElement)) return;
     activePointer = e.pointerId;
     startX = e.clientX;
@@ -403,15 +493,9 @@ function wireActions(): void {
     }
   });
 
-  randomizeButton.addEventListener('click', () => {
-    const bank = BANKS[Math.floor(Math.random() * BANKS.length)];
-    bankSelect.setValue(bank.id);
-    setBank(bank.id);
-    syncBankDependents();
-    knobs.pitch?.setValue(Math.round((Math.random() - 0.5) * 14));
-    knobs.freq?.setValue(0.3 + Math.random() * 0.6);
-    knobs.space?.setValue(0.3 + Math.random() * 0.6);
-    knobs.density?.setValue(0.3 + Math.random() * 0.6);
+  pinsButton.addEventListener('click', () => {
+    const open = togglePinnedDrawer();
+    pinsButton.setAttribute('aria-pressed', String(open));
   });
 
   // Record a shareable *video* clip (camera + overlay + sound), not just audio. On stop we hold
@@ -476,6 +560,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 let lastNow = 0;
+let lastPulseAt = 0; // throttles the random-button "fidget" pulse
 
 function tick(now: number): void {
   // The whole frame is wrapped so a stray throw (e.g. an OpenCV binding blowing up) can never
@@ -498,6 +583,12 @@ function tick(now: number): void {
 
     // Ambient poem: drifts in on its own when interaction has gone still and a plant is in frame.
     maybeAmbientPoem(now, globalHue, globalShape, globalColor, plantPresence);
+
+    // Boredom antidote: gone still + a fidget of the phone → the random button pulses to invite you.
+    if (fidget.wantsToOpen(now) && now - lastPulseAt > 2500) {
+      lastPulseAt = now;
+      pulseRandomButton();
+    }
 
     // Blend both shape and color toward the tapped/dragged leaf while focus is active; relax as it decays.
     const w = focus.strength * FOCUS_WEIGHT;

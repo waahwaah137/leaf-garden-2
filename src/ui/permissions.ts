@@ -2,6 +2,7 @@ import { initEngine } from '../audio/engine';
 import type { LeafSensor } from '../sensors/leafSensor';
 import type { MicSensor } from '../sensors/micSensor';
 import type { OrientationSensor } from '../sensors/orientationSensor';
+import type { FidgetSensor } from '../sensors/fidget';
 import { hideStartOverlay } from './dashboard';
 
 export interface StartFlowDeps {
@@ -9,6 +10,7 @@ export interface StartFlowDeps {
   light: LeafSensor;
   mic: MicSensor;
   orientation: OrientationSensor;
+  fidget: FidgetSensor;
   videoEl: HTMLVideoElement;
 }
 
@@ -43,7 +45,9 @@ async function runStartSequence(deps: StartFlowDeps): Promise<StartFlowResult> {
   // portion (including the actual browser permission API call) immediately.
   const enginePromise = initEngine();
   const orientationPromise = deps.orientation.start();
+  const fidgetPromise = deps.fidget.start(); // motion permission must be requested inside the gesture
   const mediaPromise = requestCameraAndMic(deps);
+  void fidgetPromise; // best-effort; the wheel just won't trigger without motion
 
   const [engineResult, orientationResult, { lightResult, micResult }] = await Promise.all([
     settle(enginePromise),
