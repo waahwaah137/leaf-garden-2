@@ -23,7 +23,6 @@ import {
   shareOrDownloadClip,
 } from './ui/clipRecorder';
 import { LeafSensor } from './sensors/leafSensor';
-import { MicSensor } from './sensors/micSensor';
 import { OrientationSensor } from './sensors/orientationSensor';
 import { FidgetSensor } from './sensors/fidget';
 import { loadOpenCv } from './vision/opencvLoader';
@@ -42,17 +41,22 @@ import type { PresetConfig, Preset, Specimen } from './presets/preset';
 import { savePreset, countPresets } from './presets/presetStore';
 import { showToast } from './ui/toast';
 
-// "?" about / how-to panel on the welcome screen.
+// "?!" find-out-more panel on the welcome screen. The toggle hides itself while the panel is open
+// (the panel is full-screen; the floating "?!" would otherwise sit on top of it).
 const aboutPanel = document.getElementById('about-panel');
-document.getElementById('about-toggle')?.addEventListener('click', () => aboutPanel?.classList.toggle('hidden'));
-document.getElementById('about-close')?.addEventListener('click', () => aboutPanel?.classList.add('hidden'));
+const aboutToggle = document.getElementById('about-toggle');
+function setAboutOpen(open: boolean): void {
+  aboutPanel?.classList.toggle('hidden', !open);
+  aboutToggle?.classList.toggle('is-hidden', open);
+}
+aboutToggle?.addEventListener('click', () => setAboutOpen(aboutPanel?.classList.contains('hidden') ?? true));
+document.getElementById('about-close')?.addEventListener('click', () => setAboutOpen(false));
 
 const leaf = new LeafSensor();
-// Mic + orientation are still acquired at start (the combined camera+mic getUserMedia keeps
-// iOS output on the main speaker), but the sound is driven entirely by leaf shape now.
-const mic = new MicSensor();
+// No microphone: the sound is driven entirely by leaf shape, and capturing the mic would flip the
+// audio session into record mode and break Bluetooth output. Orientation drives the fidget button.
 const orientation = new OrientationSensor();
-const fidget = new FidgetSensor(); // boredom + motion → the fidget wheel emerges
+const fidget = new FidgetSensor(); // boredom + motion → the random button pulses
 
 const stage = document.getElementById('stage') as HTMLElement;
 const videoEl = document.getElementById('camera-preview') as HTMLVideoElement;
@@ -108,7 +112,7 @@ switchCameraButton.addEventListener('click', async () => {
   }
 });
 
-attachStartButton({ light: leaf, mic, orientation, fidget, videoEl }, onExperienceReady);
+attachStartButton({ light: leaf, orientation, fidget, videoEl }, onExperienceReady);
 
 const knobs: Record<string, Knob> = {};
 let bankSelect: BankSelectHandle;

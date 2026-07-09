@@ -743,7 +743,9 @@ body {
   inset: 0;
 }
 
-/* The flame — a vertical teal→pink capsule near the top-centre, breathing organically in place. */
+/* The flame — a FIXED vertical capsule filled teal, with a pink glow rising from the BOTTOM (its
+   base) that flutters in the lower half, jazz brushed-drum-roll style (anticipation). It never
+   climbs to the top, so the pill's upper tip stays teal — no "vertical slider" read. */
 .cover-flame {
   position: absolute;
   top: 9%;
@@ -751,29 +753,42 @@ body {
   width: min(96px, 13vw);
   height: 26%;
   transform: translateX(-50%);
-  transform-origin: center bottom;
   border-radius: 999px;
-  background: linear-gradient(to bottom, #00e0ba 0%, #00e0ba 52%, #ff3483 100%);
-  filter: drop-shadow(0 0 26px rgba(255, 52, 131, 0.45)) drop-shadow(0 0 12px rgba(0, 224, 186, 0.35));
-  animation: flame-breathe 2.6s ease-in-out infinite;
+  overflow: hidden;
+  background-color: #00e0ba; /* teal fills the pill */
+  background-image: linear-gradient(to top, #ff3483 0%, #ff3483 16%, rgba(255, 52, 131, 0) 100%);
+  background-repeat: no-repeat;
+  background-position: 50% 100%; /* pink anchored to the base */
+  background-size: 100% 52%;
+  animation: flame-wave 1.05s ease-in-out infinite;
 }
 
-@keyframes flame-breathe {
-  0%, 100% {
-    transform: translateX(-50%) scale(1, 1) skewX(0deg);
+/* The pink glow's height flutters in the bottom half (48–60%) — a soft roll, never full-height. */
+@keyframes flame-wave {
+  0% {
+    background-size: 100% 48%;
   }
-  30% {
-    transform: translateX(-50%) scale(1.05, 1.08) skewX(-2deg);
+  17% {
+    background-size: 100% 58%;
   }
-  55% {
-    transform: translateX(-50%) scale(0.97, 1.04) skewX(2deg);
+  33% {
+    background-size: 100% 50%;
   }
-  80% {
-    transform: translateX(-50%) scale(1.03, 0.98) skewX(-1deg);
+  50% {
+    background-size: 100% 60%;
+  }
+  67% {
+    background-size: 100% 49%;
+  }
+  84% {
+    background-size: 100% 55%;
+  }
+  100% {
+    background-size: 100% 48%;
   }
 }
 
-/* ENTER — black pill, teal label, white stroke, drop shadow + a soft pulsing glow. */
+/* Enter — 90%-dark pill, teal label, thin white stroke, drop shadow + a soft pulsing glow. */
 #start-button.cover-enter {
   position: absolute;
   top: 46%;
@@ -783,16 +798,43 @@ body {
   padding: 1.05rem 2rem;
   font-family: inherit;
   font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  text-indent: 0.28em; /* balance the trailing letter-spacing */
+  font-weight: 300; /* 50% thinner */
+  letter-spacing: 0.1em;
+  text-indent: 0.1em; /* balance the trailing letter-spacing */
   color: #00e4b9;
-  background: #010302;
-  border: 5px solid #fff;
+  background: #1a1a1a; /* 90% dark, not pure black */
+  border: 1px solid #fff; /* 80% thinner stroke */
   border-radius: 999px;
   cursor: pointer;
   box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 rgba(0, 228, 185, 0);
   animation: enter-glow 2.6s ease-in-out infinite;
+}
+
+/* On press: a smaller, all-caps "THANK YOU!" that flashes choppily (~12fps) — see permissions.ts. */
+#start-button.cover-enter.is-thanking {
+  font-size: 0.75rem; /* 50% smaller */
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  text-transform: uppercase;
+  animation: thank-flash 1s steps(12) infinite; /* steps(12) over 1s → 12 frames/sec */
+}
+
+@keyframes thank-flash {
+  0% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes enter-glow {
@@ -863,22 +905,30 @@ body {
   }
 }
 
-/* ---------- "?" about / how-to panel ---------- */
+/* "?!" — a top-centre, pink "find out more" invitation (for the curious who don't just press Enter). */
 .about-toggle {
   position: absolute;
-  top: max(0.9rem, env(safe-area-inset-top));
-  left: max(0.9rem, env(safe-area-inset-left));
-  z-index: 2;
-  width: 34px;
+  top: max(env(safe-area-inset-top), 5vh);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  min-width: 34px;
   height: 34px;
-  border-radius: 50%;
-  font-size: 1.05rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--teal);
-  background: rgba(6, 11, 9, 0.5);
-  border: 1px solid rgba(0, 224, 186, 0.55);
-  backdrop-filter: blur(8px);
+  letter-spacing: 0.06em;
+  color: #ff3483;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid #ff3483;
+  backdrop-filter: blur(6px);
   cursor: pointer;
+}
+
+/* The panel is full-screen; hide the floating toggle while it's open. */
+.about-toggle.is-hidden {
+  display: none;
 }
 
 .about-panel {

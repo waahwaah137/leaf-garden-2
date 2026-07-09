@@ -17,6 +17,17 @@ let started = false;
 /** Must be called from within a user-gesture handler (the Start button click). */
 export async function initEngine(): Promise<void> {
   if (started) return;
+
+  // Declare this as *media playback* (not communication) so the OS routes it to Bluetooth A2DP and
+  // the loudspeaker, not the earpiece. Experimental (iOS Safari 16.4+); harmless where unsupported.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const audioSession = (navigator as any).audioSession;
+    if (audioSession) audioSession.type = 'playback';
+  } catch {
+    /* not supported — the video-only capture already keeps us in playback mode */
+  }
+
   await Tone.start();
 
   masterBus = new Tone.Gain(DEFAULT_VOLUME);

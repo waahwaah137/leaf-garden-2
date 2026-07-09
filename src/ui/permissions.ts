@@ -1,6 +1,5 @@
 import { initEngine } from '../audio/engine';
 import type { LeafSensor } from '../sensors/leafSensor';
-import type { MicSensor } from '../sensors/micSensor';
 import type { OrientationSensor } from '../sensors/orientationSensor';
 import type { FidgetSensor } from '../sensors/fidget';
 import { hideStartOverlay } from './dashboard';
@@ -8,7 +7,6 @@ import { hideStartOverlay } from './dashboard';
 export interface StartFlowDeps {
   /** The camera analyzer. Named `light` for historical reasons; it now measures leaf shape. */
   light: LeafSensor;
-  mic: MicSensor;
   orientation: OrientationSensor;
   fidget: FidgetSensor;
   videoEl: HTMLVideoElement;
@@ -16,7 +14,6 @@ export interface StartFlowDeps {
 
 export interface StartFlowResult {
   light: boolean;
-  mic: boolean;
   orientation: boolean;
 }
 
@@ -26,7 +23,9 @@ export function attachStartButton(deps: StartFlowDeps, onReady: (result: StartFl
 
   button.addEventListener('click', async () => {
     button.disabled = true;
-    button.textContent = 'Starting…';
+    // A brief gratitude beat while the sensors spin up (styled smaller + all-caps on the cover).
+    button.textContent = 'THANK YOU!';
+    button.classList.add('is-thanking');
 
     const result = await runStartSequence(deps);
 
@@ -46,23 +45,21 @@ async function runStartSequence(deps: StartFlowDeps): Promise<StartFlowResult> {
   const enginePromise = initEngine();
   const orientationPromise = deps.orientation.start();
   const fidgetPromise = deps.fidget.start(); // motion permission must be requested inside the gesture
-  const mediaPromise = requestCameraAndMic(deps);
+  const cameraPromise = requestCamera(deps);
   void fidgetPromise; // best-effort; the wheel just won't trigger without motion
 
-  const [engineResult, orientationResult, { lightResult, micResult }] = await Promise.all([
+  const [engineResult, orientationResult, lightResult] = await Promise.all([
     settle(enginePromise),
     settle(orientationPromise),
-    mediaPromise,
+    settle(cameraPromise),
   ]);
 
   if (engineResult.status === 'rejected') console.error('Audio engine failed to start:', engineResult.reason);
   if (lightResult.status === 'rejected') console.warn('Camera unavailable:', lightResult.reason);
-  if (micResult.status === 'rejected') console.warn('Microphone unavailable:', micResult.reason);
   if (orientationResult.status === 'rejected') console.warn('Orientation unavailable:', orientationResult.reason);
 
   return {
     light: lightResult.status === 'fulfilled',
-    mic: micResult.status === 'fulfilled',
     orientation: orientationResult.status === 'fulfilled',
   };
 }
@@ -72,43 +69,17 @@ async function settle<T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> 
   return result;
 }
 
-interface MediaResults {
-  lightResult: PromiseSettledResult<void>;
-  micResult: PromiseSettledResult<void>;
-}
-
 /**
- * Requests camera + mic together in a single getUserMedia call, the way a real
- * video-call app would, rather than as two independent audio-only/video-only
- * calls. iOS Safari's audio-session routing (main speaker vs. the quiet earpiece)
- * appears to key off this: two separate requests can leave iOS treating the mic
- * capture as an audio-only "phone call" and route all output to the earpiece,
- * even for music playback. Falls back to independent per-sensor requests if the
- * combined call fails for any reason (e.g. no camera on this device).
+ * Requests the CAMERA ONLY (no microphone). We deliberately do not capture the mic: it isn't used to
+ * make sound in this version, and capturing it flips the device's audio session into record /
+ * play-and-record mode — which drops Bluetooth from A2DP (stereo media) to HFP/SCO (mono call) or the
+ * earpiece, making the app inaudible on BT headphones after another app has played audio. Video-only
+ * keeps the session in plain media playback, so it routes to Bluetooth like any music/video app.
  */
-async function requestCameraAndMic(deps: StartFlowDeps): Promise<MediaResults> {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 160 }, height: { ideal: 120 }, facingMode: { ideal: 'environment' } },
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-    });
-
-    const videoTrack = stream.getVideoTracks()[0];
-    const audioTrack = stream.getAudioTracks()[0];
-
-    const [lightResult, micResult] = await Promise.allSettled([
-      videoTrack
-        ? deps.light.attachStream(deps.videoEl, new MediaStream([videoTrack]))
-        : Promise.reject(new Error('No video track in combined camera+mic stream')),
-      audioTrack
-        ? Promise.resolve(deps.mic.attachStream(new MediaStream([audioTrack])))
-        : Promise.reject(new Error('No audio track in combined camera+mic stream')),
-    ]);
-
-    return { lightResult, micResult };
-  } catch (error) {
-    console.warn('Combined camera+mic request failed, falling back to separate requests:', error);
-    const [lightResult, micResult] = await Promise.allSettled([deps.light.start(deps.videoEl), deps.mic.start()]);
-    return { lightResult, micResult };
-  }
+async function requestCamera(deps: StartFlowDeps): Promise<void> {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: { ideal: 160 }, height: { ideal: 120 }, facingMode: { ideal: 'environment' } },
+    audio: false,
+  });
+  await deps.light.attachStream(deps.videoEl, stream);
 }

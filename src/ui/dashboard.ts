@@ -68,7 +68,6 @@ export function hideControls(): void {
 
 export interface SensorAvailability {
   light: boolean;
-  mic: boolean;
   orientation: boolean;
 }
 
