@@ -40,24 +40,21 @@ export async function initEngine(): Promise<void> {
   compressor.connect(makeup);
   makeup.connect(limiter);
 
-  // iOS Safari routes plain Web Audio output (Tone.Destination) to the quiet
-  // earpiece speaker instead of the main loudspeaker as soon as the mic is
-  // captured via getUserMedia (it flips the audio session into a
-  // recording-oriented mode). Actual <audio>/<video> element playback gets
-  // the "defaultToSpeaker" routing instead, so we pipe the master output
-  // through a hidden <audio> element fed by a MediaStreamDestination rather
-  // than connecting straight to Tone.Destination.
+  // Primary audible output: the default AudioContext destination. This is ordinary media Web Audio,
+  // so — with no microphone captured — the OS routes it to Bluetooth A2DP and the loudspeaker just
+  // like any music/video app. (We used to route through a hidden <audio srcObject> element to dodge
+  // an iOS earpiece quirk that mic capture caused; that quirk is gone with the mic, and on Android a
+  // MediaStream played through <audio> is treated as call/communication audio — which never grabs
+  // the Bluetooth media route, so BT speakers like a JBL got no sound. Plain destination fixes both.)
+  limiter.connect(Tone.getDestination());
+
+  // Separately, tap the mastered output into a MediaStream purely so a shareable video clip can mux
+  // the audio (getMasterAudioStream). This stream is NOT played back — the clip recorder consumes its
+  // audio track directly.
   const rawContext = Tone.getContext().rawContext as AudioContext;
   const streamDestination = rawContext.createMediaStreamDestination();
   limiter.connect(streamDestination);
   outputStream = streamDestination.stream;
-
-  const outputEl = document.createElement('audio');
-  outputEl.autoplay = true;
-  outputEl.setAttribute('playsinline', '');
-  outputEl.srcObject = streamDestination.stream;
-  document.body.appendChild(outputEl);
-  await outputEl.play();
 
   Tone.Transport.bpm.value = BASE_BPM;
   Tone.Transport.start();
