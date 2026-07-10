@@ -18,8 +18,8 @@ export default defineConfig({
       // Auto-generate app icons (incl. maskable) from the source leaf mark.
       pwaAssets: { image: 'public/leaf.svg', overrideManifestIcons: true },
       manifest: {
-        name: 'Leaf Garden — sound from plants',
-        short_name: 'Leaf Garden',
+        name: 'ListenGreen — sound from plants',
+        short_name: 'ListenGreen',
         description: 'Point your camera at plants; leaf shapes become a live soundscape.',
         display: 'standalone',
         orientation: 'any',
