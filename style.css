@@ -103,6 +103,143 @@ body {
   color: var(--teal);
 }
 
+/* ---------- Play-mode pill ([1][2][3]) with DRAG MODE caption ---------- */
+/* Left edge, just below the HUD. Switches touch position→sound mapping live. */
+.play-mode-wrap {
+  position: absolute;
+  top: calc(max(0.9rem, env(safe-area-inset-top)) + 2rem);
+  left: max(0.9rem, env(safe-area-inset-left));
+  z-index: 4;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center; /* centres the caption over the pill (left edge of 1 → right edge of 3) */
+  gap: 3px;
+}
+
+/* Small caption, spanning the pill's width and centred over it. */
+.play-mode-label {
+  width: 100%;
+  text-align: center;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(0, 224, 186, 0.7);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.play-mode {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(11, 20, 16, 0.5);
+  border: 1px solid rgba(0, 224, 186, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.play-mode-seg {
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(0, 224, 186, 0.7);
+  font: inherit;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.play-mode-seg.is-active {
+  background: var(--teal);
+  color: #0b1410;
+}
+
+/* ---------- Close LG pill (clear exit) ---------- */
+/* Top-right, mirroring the play-mode pill. Stops camera + audio + sensors → back to the cover. */
+.close-app {
+  position: absolute;
+  top: max(0.9rem, env(safe-area-inset-top));
+  right: max(0.9rem, env(safe-area-inset-right));
+  z-index: 6;
+  height: 26px;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #ff3483;
+  background: rgba(255, 52, 131, 0.15);
+  border: 1px solid #ff3483;
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
+/* ---------- "find some green" hint (shown when there's no green → no sound) ---------- */
+.green-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  animation: green-hint-breathe 3s ease-in-out infinite;
+}
+
+/* Gentle pulse + fade so the prompt breathes rather than sits static. */
+@keyframes green-hint-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.green-hint.hidden {
+  display: none;
+}
+
+/* ---------- Pause overlay (returned to foreground while suspended) ---------- */
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(2px);
+}
+
+.pause-overlay.hidden {
+  display: none;
+}
+
+.resume-button {
+  padding: 0.55rem 1.2rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--teal);
+  background: rgba(0, 224, 186, 0.14);
+  border: 1px solid var(--teal);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
 /* ---------- Whimsical poem overlay ---------- */
 /* Discreet, near the top (below the HUD), sized like the rest of the UI chrome. */
 /* The poem surfaces up-top like a private, decoded transmission: a left-aligned cipher of abstract
@@ -463,7 +600,8 @@ body {
 /* ---------- Custom DAW-style bank selector ---------- */
 .bank-select {
   position: absolute;
-  top: max(0.9rem, env(safe-area-inset-top));
+  /* Sits just below the Close LG pill in the top-right corner. */
+  top: calc(max(0.9rem, env(safe-area-inset-top)) + 2.4rem);
   right: max(0.9rem, env(safe-area-inset-right));
   z-index: 5;
 }
@@ -908,22 +1046,37 @@ body {
 /* "?!" — a top-centre, pink "find out more" invitation (for the curious who don't just press Enter). */
 .about-toggle {
   position: absolute;
-  top: max(env(safe-area-inset-top), 5vh);
+  top: max(env(safe-area-inset-top), 4vh);
   left: 50%;
+  /* translateX(-50%) is folded into the pulse keyframes so both transforms coexist. */
   transform: translateX(-50%);
-  z-index: 6;
-  min-width: 34px;
-  height: 34px;
-  padding: 0 0.5rem;
+  z-index: 7;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 0.6rem;
   border-radius: 999px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   color: #ff3483;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid #ff3483;
+  background: rgba(255, 255, 255, 0.28);
+  border: 2px solid #ff3483;
   backdrop-filter: blur(6px);
   cursor: pointer;
+  animation: about-pulse 1.7s ease-in-out infinite;
+}
+
+/* Gentle attention pulse: breathe the scale + a soft pink glow so the "?!" invites a tap. */
+@keyframes about-pulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 52, 131, 0);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.14);
+    box-shadow: 0 0 18px 4px rgba(255, 52, 131, 0.5);
+  }
 }
 
 /* The panel is full-screen; hide the floating toggle while it's open. */

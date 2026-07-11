@@ -37,6 +37,15 @@ export class FidgetSensor {
     }
   }
 
+  /** Stop listening for motion (e.g. when the app is backgrounded). start() can be called again. */
+  stop(): void {
+    if (!this.started) return;
+    window.removeEventListener('devicemotion', this.handleMotion, true);
+    this.started = false;
+    this.hasMotion = false;
+    this.energy = 0;
+  }
+
   private handleMotion = (e: DeviceMotionEvent): void => {
     let mag = 0;
     const r = e.rotationRate;

@@ -1,4 +1,4 @@
-import { getDefaultVolume, setMasterVolume, getMasterAudioStream } from './audio/engine';
+import { getDefaultVolume, setMasterVolume, getMasterAudioStream, suspendAudio, resumeAudio } from './audio/engine';
 import {
   BANKS,
   MODE_NAMES,
@@ -13,6 +13,12 @@ import {
   setDensity,
   setTempo,
   pluckLeafscape,
+  setPlayMode,
+  dragStart,
+  dragMove,
+  dragEnd,
+  GREEN_LO,
+  GREEN_HI,
 } from './audio/leafscape';
 import {
   startClip,
@@ -60,6 +66,10 @@ const fidget = new FidgetSensor(); // boredom + motion → the random button pul
 
 const stage = document.getElementById('stage') as HTMLElement;
 const videoEl = document.getElementById('camera-preview') as HTMLVideoElement;
+// Never let Android/Chrome pop the camera feed into a floating picture-in-picture window.
+videoEl.disablePictureInPicture = true;
+const greenHintEl = document.getElementById('green-hint');
+let greenHintShown = false;
 const overlayCanvas = document.getElementById('leaf-overlay') as HTMLCanvasElement;
 const switchCameraButton = document.getElementById('switch-camera-button') as HTMLButtonElement;
 const pinsButton = document.getElementById('pins-button') as HTMLButtonElement;
@@ -112,7 +122,7 @@ switchCameraButton.addEventListener('click', async () => {
   }
 });
 
-attachStartButton({ light: leaf, orientation, fidget, videoEl }, onExperienceReady);
+attachStartButton({ light: leaf, orientation, fidget, videoEl }, onExperienceReady, resumeApp);
 
 const knobs: Record<string, Knob> = {};
 let bankSelect: BankSelectHandle;
@@ -183,6 +193,7 @@ function onExperienceReady(result: StartFlowResult): void {
   buildControls();
   wireActions();
   attachTapToPlay();
+  attachPlayModePill();
 
   // The small random button (roll → apply live; the pin below keeps the current sound).
   initRandomButton(stage, {
@@ -205,6 +216,8 @@ function onExperienceReady(result: StartFlowResult): void {
     .then((n) => (pinnedCount = n))
     .catch(() => {});
 
+  experienceStarted = true;
+  running = true;
   goImmersive();
 
   requestAnimationFrame(tick);
@@ -228,8 +241,11 @@ function pointerToStage(e: PointerEvent): { mx: number; ny: number } {
   return { mx, ny };
 }
 
-/** The shape/color/hue at a normalized point: the nearest leaf's own values if close, else global. */
-function sampleAt(mx: number, ny: number): { shape: number; color: number; hue: number } {
+/**
+ * The shape/color/hue at a normalized point: the nearest leaf's own values if close, else global.
+ * `onLeaf` reports whether the point actually landed on a tracked leaf (drives the "leaf accent").
+ */
+function sampleAt(mx: number, ny: number): { shape: number; color: number; hue: number; onLeaf: boolean } {
   const boxes = leaf.getLeafBoxes();
   let nearest: { shapeSignal: number; colorSignal: number; hueDeg: number } | null = null;
   let bestD = Infinity;
@@ -247,6 +263,7 @@ function sampleAt(mx: number, ny: number): { shape: number; color: number; hue: 
     shape: near ? near.shapeSignal : leaf.getShapeSignal(),
     color: near ? near.colorSignal : leaf.getColorSignal(),
     hue: near ? near.hueDeg : leaf.getHueDeg(),
+    onLeaf: !!near,
   };
 }
 
@@ -254,7 +271,7 @@ function sampleAt(mx: number, ny: number): { shape: number; color: number; hue: 
  * Points the focus at a sampled location and returns what was found. `focus.strength` is set to 1;
  * whether it then holds (drag) or decays (tap) is governed by the `dragging` flag in tick().
  */
-function focusAt(mx: number, ny: number): { shape: number; color: number; hue: number } {
+function focusAt(mx: number, ny: number): { shape: number; color: number; hue: number; onLeaf: boolean } {
   const s = sampleAt(mx, ny);
   focus.x = mx;
   focus.y = ny;
@@ -329,11 +346,18 @@ function attachTapToPlay(): void {
   let startX = 0;
   let startY = 0;
   let movedToDrag = false;
+  // For the drag-speed estimate (last sampled point + time, normalized stage units).
+  let lastMx = 0;
+  let lastMy = 0;
+  let lastMoveT = 0;
 
   const isChrome = (target: HTMLElement) =>
     target.closest('#controls') ||
     target.closest('#bank-select') ||
     target.closest('.hud') ||
+    target.closest('.play-mode-wrap') ||
+    target.closest('#close-app') ||
+    target.closest('#pause-overlay') ||
     target.closest('#controls-toggle') ||
     target.closest('.fidget-wheel');
 
@@ -354,14 +378,28 @@ function attachTapToPlay(): void {
 
   stage.addEventListener('pointermove', (e) => {
     if (e.pointerId !== activePointer) return;
+    const { mx, ny } = pointerToStage(e);
+    const s = focusAt(mx, ny); // sample the leaf under the finger (Hu shape + HSL hue/colour)
+    const vision = { shape: s.shape, hue: s.hue, color: s.color };
+    const t = e.timeStamp || performance.now();
     if (!movedToDrag) {
       const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
       if (dist < DRAG_THRESHOLD_PX) return;
       movedToDrag = true;
       dragging = true; // sustain: tick() stops decaying focus while this is true
+      lastMx = mx;
+      lastMy = ny;
+      lastMoveT = t;
+      dragStart(mx, ny, vision); // begin this mode's drag texture
+    } else {
+      // Normalized drag speed (stage-units/sec ÷ 3), so a full-screen swipe ≈ 1.
+      const dt = Math.max(1, t - lastMoveT);
+      const speed = clamp((Math.hypot(mx - lastMx, ny - lastMy) / dt) * (1000 / 3), 0, 1);
+      lastMx = mx;
+      lastMy = ny;
+      lastMoveT = t;
+      dragMove(mx, ny, vision, speed); // Brush grains / Wind breath / Bow step
     }
-    const { mx, ny } = pointerToStage(e);
-    const s = focusAt(mx, ny);
     addTrailPoint(mx, ny, s.hue);
   });
 
@@ -374,14 +412,16 @@ function attachTapToPlay(): void {
       /* ignore */
     }
     if (movedToDrag) {
-      // Drag: release the sustain so the tone fades out via the normal focus decay in tick().
+      // Drag: end this mode's texture, then let the ambient bed fade via focus decay in tick().
+      dragEnd();
       dragging = false;
     } else {
-      // Tap: discrete pluck + ripple at the touch point.
+      // Tap: discrete pluck + ripple at the touch point. Pitch/timbre follow where you touched;
+      // touching a tracked leaf adds a brighter accent.
       const { mx, ny } = pointerToStage(e);
       const s = focusAt(mx, ny);
       addRipple(mx, ny, s.hue);
-      pluckLeafscape(s.shape);
+      pluckLeafscape(s.shape, mx, ny, s.onLeaf);
       poemOnTap(s);
     }
     movedToDrag = false;
@@ -389,6 +429,24 @@ function attachTapToPlay(): void {
 
   stage.addEventListener('pointerup', endGesture);
   stage.addEventListener('pointercancel', endGesture);
+}
+
+/** Wires the [1][2][3] pill: tapping a segment switches the touch→sound mapping live. */
+function attachPlayModePill(): void {
+  const pill = document.getElementById('play-mode');
+  if (!pill) return;
+  const segs = Array.from(pill.querySelectorAll<HTMLButtonElement>('.play-mode-seg'));
+  for (const seg of segs) {
+    seg.addEventListener('click', () => {
+      const mode = Number(seg.dataset.mode) as 1 | 2 | 3;
+      setPlayMode(mode);
+      for (const s of segs) {
+        const active = s === seg;
+        s.classList.toggle('is-active', active);
+        s.setAttribute('aria-pressed', String(active));
+      }
+    });
+  }
 }
 
 function pct(v: number): string {
@@ -550,6 +608,15 @@ async function requestWakeLock(): Promise<void> {
   }
 }
 
+function releaseWakeLock(): void {
+  try {
+    wakeLock?.release?.();
+  } catch {
+    /* ignore */
+  }
+  wakeLock = null;
+}
+
 async function goImmersive(): Promise<void> {
   try {
     await document.documentElement.requestFullscreen?.();
@@ -559,9 +626,96 @@ async function goImmersive(): Promise<void> {
   requestWakeLock();
 }
 
+// --- App lifecycle: shut every sensor + audio the moment we're not in the foreground --------------
+// Privacy first: the camera, motion sensors, and audio must never keep running in the background.
+// `running` gates the RAF loop; `pausedByBackground` means "we auto-suspended — offer tap-to-resume".
+let running = false;
+let experienceStarted = false;
+let pausedByBackground = false;
+
+function showPauseOverlay(): void {
+  document.getElementById('pause-overlay')?.classList.remove('hidden');
+}
+function hidePauseOverlay(): void {
+  document.getElementById('pause-overlay')?.classList.add('hidden');
+}
+
+/** Hard-stop: release the camera, suspend audio, halt the loop, drop motion/orientation + wake lock. */
+async function suspendApp(): Promise<void> {
+  if (!running) return;
+  running = false;
+  try {
+    dragEnd();
+  } catch {
+    /* ignore */
+  }
+  leaf.stop(); // releases the camera tracks — the capture light goes off
+  orientation.stop();
+  fidget.stop();
+  releaseWakeLock();
+  await suspendAudio();
+}
+
+/**
+ * Bring everything back. Must be called from a user gesture (the resume pill or Enter): iOS requires
+ * audio-resume + motion/orientation re-grant + camera to *begin* within the gesture, so every
+ * gesture-sensitive call is fired synchronously (no awaits gating them), mirroring the start flow.
+ */
+function resumeApp(): void {
+  if (!experienceStarted || running) return;
+  pausedByBackground = false;
+  hidePauseOverlay();
+  running = true;
+  lastNow = 0;
+  void resumeAudio();
+  void orientation.start();
+  void fidget.start();
+  void leaf.start(videoEl).then(() => {
+    // re-acquire the camera (permission persists, no prompt)
+    videoEl.classList.toggle('mirrored', leaf.getFacingMode() === 'user');
+  });
+  requestAnimationFrame(tick);
+  void goImmersive();
+}
+
+/** "Close LG": stop everything and return to the Enter cover (a PWA can't truly quit itself). */
+async function closeApp(): Promise<void> {
+  await suspendApp();
+  pausedByBackground = false;
+  hidePauseOverlay();
+  try {
+    await document.exitFullscreen?.();
+  } catch {
+    /* ignore */
+  }
+  const startBtn = document.getElementById('start-button') as HTMLButtonElement | null;
+  if (startBtn) {
+    startBtn.textContent = 'Enter';
+    startBtn.classList.remove('is-thanking');
+    startBtn.disabled = false;
+  }
+  document.getElementById('start-overlay')?.classList.remove('hidden');
+}
+
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock();
+  if (document.hidden) {
+    if (running) {
+      pausedByBackground = true;
+      void suspendApp();
+    }
+  } else if (pausedByBackground) {
+    showPauseOverlay(); // returned to the foreground while suspended — wait for a deliberate resume
+  }
 });
+window.addEventListener('pagehide', () => {
+  if (running) {
+    pausedByBackground = true;
+    void suspendApp();
+  }
+});
+
+document.getElementById('close-app')?.addEventListener('click', () => void closeApp());
+document.getElementById('resume-button')?.addEventListener('click', () => void resumeApp());
 
 let lastNow = 0;
 let lastPulseAt = 0; // throttles the random-button "fidget" pulse
@@ -584,6 +738,16 @@ function tick(now: number): void {
     const globalHue = leaf.getHueDeg();
     const plantPresence = leaf.getPlantPresence();
     const spatial = leaf.getSpatial();
+
+    // "find some green": show when there's too little green to make sound; hide once green returns.
+    // The GREEN_LO..GREEN_HI gap gives hysteresis so it doesn't flicker at the boundary.
+    if (!greenHintShown && plantPresence < GREEN_LO) {
+      greenHintShown = true;
+      greenHintEl?.classList.remove('hidden');
+    } else if (greenHintShown && plantPresence > GREEN_HI) {
+      greenHintShown = false;
+      greenHintEl?.classList.add('hidden');
+    }
 
     // Ambient poem: drifts in on its own when interaction has gone still and a plant is in frame.
     maybeAmbientPoem(now, globalHue, globalShape, globalColor, plantPresence);
@@ -619,7 +783,7 @@ function tick(now: number): void {
   } catch (err) {
     console.warn('tick() frame error (loop kept alive):', err);
   } finally {
-    requestAnimationFrame(tick);
+    if (running) requestAnimationFrame(tick); // stops cleanly when the app is suspended/closed
   }
 }
 

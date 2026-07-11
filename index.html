@@ -13,12 +13,31 @@
   </head>
   <body>
     <div id="stage" class="stage">
-      <video id="camera-preview" playsinline muted autoplay></video>
+      <video id="camera-preview" playsinline muted autoplay disablepictureinpicture></video>
       <canvas id="leaf-overlay" class="leaf-overlay"></canvas>
 
       <div id="hud" class="hud">
         <span id="hud-metric" class="hud-item">form 0.00</span>
         <span id="hud-cv" class="hud-badge">warming up…</span>
+      </div>
+
+      <!-- Clear exit: stops the camera + audio + sensors and returns to the Enter cover. -->
+      <button id="close-app" class="close-app" type="button" aria-label="Close ListenGreen">Close LG</button>
+
+      <!-- Shown when there isn't enough green in frame to make any sound. -->
+      <div id="green-hint" class="green-hint hidden" aria-hidden="true">find some green</div>
+
+      <!-- Play-mode pill: switches how touch position maps to sound, live. -->
+      <div class="play-mode-wrap">
+        <span class="play-mode-label" aria-hidden="true">DRAG MODE</span>
+        <div id="play-mode" class="play-mode" role="group" aria-label="Drag mode">
+          <button type="button" class="play-mode-seg is-active" data-mode="1" aria-pressed="true"
+            aria-label="Mode 1: left-right changes pitch, up-down changes brightness">1</button>
+          <button type="button" class="play-mode-seg" data-mode="2" aria-pressed="false"
+            aria-label="Mode 2: left-right changes pitch, up-down changes octave">2</button>
+          <button type="button" class="play-mode-seg" data-mode="3" aria-pressed="false"
+            aria-label="Mode 3: up-down changes pitch, left-right changes brightness">3</button>
+        </div>
       </div>
 
       <!-- Whimsical generative poem: subtle, auto-fading, non-interactive (taps pass through). -->
@@ -77,6 +96,11 @@
         <p>No two walks are ever the same. Somewhere in there is a moment only you will hear.</p>
         <p class="about-foot">Go find it.</p>
       </div>
+    </div>
+
+    <!-- Shown when the app returns to the foreground after auto-suspending: nothing runs until tapped. -->
+    <div id="pause-overlay" class="pause-overlay hidden">
+      <button id="resume-button" class="resume-button" type="button">tap to resume</button>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

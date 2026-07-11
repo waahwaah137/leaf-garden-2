@@ -66,6 +66,28 @@ export function isEngineStarted(): boolean {
   return started;
 }
 
+/** Fully suspends audio when the app leaves the foreground (silences output + idles the context). */
+export async function suspendAudio(): Promise<void> {
+  try {
+    Tone.Transport.pause();
+    const ctx = Tone.getContext().rawContext as AudioContext;
+    if (ctx.state === 'running') await ctx.suspend();
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Resumes audio when the app returns to the foreground (must be called from a user gesture). */
+export async function resumeAudio(): Promise<void> {
+  try {
+    const ctx = Tone.getContext().rawContext as AudioContext;
+    if (ctx.state === 'suspended') await ctx.resume();
+    Tone.Transport.start();
+  } catch {
+    /* best-effort */
+  }
+}
+
 export function getCommandedBpm(): number {
   return BASE_BPM;
 }

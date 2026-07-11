@@ -17,17 +17,35 @@ export interface StartFlowResult {
   orientation: boolean;
 }
 
-export function attachStartButton(deps: StartFlowDeps, onReady: (result: StartFlowResult) => void): void {
+export function attachStartButton(
+  deps: StartFlowDeps,
+  onReady: (result: StartFlowResult) => void,
+  onResume?: () => void | Promise<void>,
+): void {
   const button = document.getElementById('start-button') as HTMLButtonElement | null;
   if (!button) throw new Error('Missing #start-button');
 
+  let started = false;
+
   button.addEventListener('click', async () => {
+    // Re-entry from "Close LG": the experience already ran once, so just resume (still a user
+    // gesture, which audio/motion re-activation needs) rather than re-running the whole start flow.
+    if (started) {
+      if (!onResume) return;
+      button.disabled = true;
+      await onResume();
+      hideStartOverlay();
+      button.disabled = false;
+      return;
+    }
+
     button.disabled = true;
     // A brief gratitude beat while the sensors spin up (styled smaller + all-caps on the cover).
     button.textContent = 'THANK YOU!';
     button.classList.add('is-thanking');
 
     const result = await runStartSequence(deps);
+    started = true;
 
     hideStartOverlay();
     onReady(result);
