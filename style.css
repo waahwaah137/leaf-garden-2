@@ -865,10 +865,25 @@ body {
 .start-overlay {
   position: fixed;
   inset: 0;
-  background: #00e1b9; /* bright teal-green field */
+  /* Bright teal field with a long, smooth melt into palette pink across the lower half; the whole
+     gradient drifts up and down slowly like a gentle tide. */
+  background: linear-gradient(to bottom, #00e1b9 0%, #00e1b9 35%, #ff3483 100%);
+  background-size: 100% 135%;
+  background-position: 50% 0%;
+  animation: cover-tide 11s ease-in-out infinite alternate;
   z-index: 10;
   overflow: hidden;
   transition: opacity 0.4s ease;
+}
+
+/* Slow vertical wave: the pink tide gently rises and recedes. */
+@keyframes cover-tide {
+  from {
+    background-position: 50% 0%;
+  }
+  to {
+    background-position: 50% 100%;
+  }
 }
 
 .start-overlay.hidden {
@@ -893,6 +908,7 @@ body {
   transform: translateX(-50%);
   border-radius: 999px;
   overflow: hidden;
+  z-index: 1; /* above the base ripple */
   background-color: #00e0ba; /* teal fills the pill */
   background-image: linear-gradient(to top, #ff3483 0%, #ff3483 16%, rgba(255, 52, 131, 0) 100%);
   background-repeat: no-repeat;
@@ -923,6 +939,48 @@ body {
   }
   100% {
     background-size: 100% 48%;
+  }
+}
+
+/* Ripple at the flame's base (top 9% + height 26% ≈ 35%): faint rings emanate + fade outward,
+   like the pill is dipping into water. Sits behind the flame so the pill stands "in" the rings. */
+.cover-ripple {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(220px, 34vw);
+  height: min(74px, 11vw);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.cover-ripple span {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.4);
+  animation: cover-ripple-expand 3.6s ease-out infinite;
+}
+
+.cover-ripple span:nth-child(2) {
+  animation-delay: 1.2s;
+}
+
+.cover-ripple span:nth-child(3) {
+  animation-delay: 2.4s;
+}
+
+@keyframes cover-ripple-expand {
+  0% {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.3);
   }
 }
 
@@ -1027,11 +1085,34 @@ body {
 }
 
 .cover-cam-track span {
-  padding-right: 1rem;
   font-size: 0.8rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #2a2a2a;
+}
+
+/* Each phrase: a pink icon + its label, scrolling together. */
+.cam-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-right: 0.9rem;
+  white-space: nowrap;
+}
+
+.cam-dot {
+  padding-right: 0.9rem;
+}
+
+.cam-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+  fill: none;
+  stroke: #ff3483;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 @keyframes cam-scroll {
