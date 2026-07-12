@@ -762,6 +762,32 @@ body {
   pointer-events: none;
 }
 
+/* Downward-arrow notch at the top of the sheet — tap to close the drawer. */
+.controls-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 22px;
+  margin: -0.2rem auto 0.55rem;
+  padding: 0;
+  border: 1px solid rgba(0, 224, 186, 0.5);
+  border-radius: 999px;
+  background: rgba(0, 224, 186, 0.12);
+  color: var(--teal);
+  cursor: pointer;
+}
+
+.controls-close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .knob-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));

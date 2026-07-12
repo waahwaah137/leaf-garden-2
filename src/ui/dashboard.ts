@@ -37,6 +37,8 @@ export function initDashboard(): void {
 
   // Dedicated button toggles the sheet (screen taps are reserved for playing the leaves).
   els.toggleBtn.addEventListener('click', () => toggleControls());
+  // The downward-arrow notch at the top of the sheet closes it.
+  document.getElementById('controls-close')?.addEventListener('click', () => hideControls());
   // Keep the sheet open while the user is turning knobs inside it.
   els.controls.addEventListener('pointerdown', () => scheduleAutoHide());
 }
