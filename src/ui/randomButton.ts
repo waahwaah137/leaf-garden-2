@@ -146,6 +146,18 @@ export function initRandomButton(stage: HTMLElement, callbacks: RandomButtonCall
   stage.appendChild(root);
 }
 
+/**
+ * Rolls + applies one curated sound at startup so the app opens on something different every time
+ * (instead of the fixed default). No cooldown — the button stays armed for an immediate re-roll.
+ */
+export function rollRandomButtonInitial(): void {
+  if (!cb) return;
+  const s = rollSpecimen(seed++, cb.bankIds);
+  current = s;
+  cb.onApply(s);
+  showName(s.name);
+}
+
 /** A brief attention pulse (driven by the fidget sensor when you're bored + wiggling the phone). */
 export function pulseRandomButton(): void {
   if (!root) return;

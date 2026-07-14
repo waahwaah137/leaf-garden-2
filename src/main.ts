@@ -41,8 +41,11 @@ import { attachStartButton, type StartFlowResult } from './ui/permissions';
 import { createPoet, type PoetryInput, type Structure } from './poetry/poet';
 import { getPhase } from './env/daytime';
 import { initPoemOverlay, showPoem, hidePoem } from './ui/poemOverlay';
-import { initRandomButton, pulseRandomButton, setRandomButtonHidden } from './ui/randomButton';
+import { initRandomButton, rollRandomButtonInitial, pulseRandomButton, setRandomButtonHidden } from './ui/randomButton';
 import { initPinnedDrawer, togglePinnedDrawer } from './ui/pinnedDrawer';
+import { initCubbonMap, openCubbonMap } from './ui/cubbonMap';
+import { nearestOnce } from './map/proximity';
+import { landmarkById, IN_PARK_M } from './map/landmarks';
 import type { PresetConfig, Preset, Specimen } from './presets/preset';
 import { savePreset, countPresets } from './presets/presetStore';
 import { showToast } from './ui/toast';
@@ -173,7 +176,17 @@ async function pinSpecimen(s: Specimen): Promise<void> {
     showToast(`pinned ✓ · ${pinnedCount}`);
   } catch (err) {
     console.warn('could not pin preset:', err);
+    return;
   }
+  // Attach a place in the background — geolocation can be slow, so don't block the pin. Only pins
+  // made inside the park (near a landmark) get placed; the landmark id is stored, never coordinates.
+  void nearestOnce().then((prox) => {
+    if (!prox || prox.distanceM > IN_PARK_M) return;
+    preset.place = { landmarkId: prox.landmarkId };
+    void savePreset(preset);
+    const lm = landmarkById(prox.landmarkId);
+    if (lm) showToast(`placed at ${lm.label}`);
+  });
 }
 
 function onExperienceReady(result: StartFlowResult): void {
@@ -201,9 +214,15 @@ function onExperienceReady(result: StartFlowResult): void {
     onApply: (s) => applyConfig(s.config),
     onPin: (s) => void pinSpecimen(s),
   });
+  // Open on a fresh, curated sound each launch — so it feels different every time, not the default.
+  rollRandomButtonInitial();
   // The pins list inside the controls drawer (tap a row to replay).
   const pinsPanel = document.getElementById('pins-panel');
   if (pinsPanel) initPinnedDrawer(pinsPanel, (cfg) => applyConfig(cfg));
+
+  // The Cubbon audio-landmark map (proximity-locked retrieval of pinned sounds).
+  initCubbonMap((cfg) => applyConfig(cfg));
+  document.getElementById('map-button')?.addEventListener('click', () => openCubbonMap());
 
   // Hide the floating random button while the controls drawer is open (they'd overlap).
   const controlsEl = document.getElementById('controls');
