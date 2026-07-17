@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ListenGreen — UI Reference</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%2300b394'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --paper: #f2f7f4; --paper-2: #e9f1ed; --card: #ffffff;
+    --ink: #0f1a16; --ink-2: #465a51; --ink-3: #6d8378;
+    --line: #d2e0d8; --teal: #0a8f77; --teal-app: #00e0ba; --pink: #ff3483;
+    --app: #0b1410; --num: #ffab2e; --num-ink: #241300;
+    --radius: 14px; --maxw: 1120px;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #0b1310; --paper-2: #0f1a15; --card: #101c17; --ink: #dcebe4;
+      --ink-2: #9ab3a8; --ink-3: #6f877c; --line: #203029; --teal: #2fd7bb; }
+  }
+  :root[data-theme="dark"] { --paper: #0b1310; --paper-2: #0f1a15; --card: #101c17; --ink: #dcebe4;
+    --ink-2: #9ab3a8; --ink-3: #6f877c; --line: #203029; --teal: #2fd7bb; }
+  :root[data-theme="light"] { --paper: #f2f7f4; --paper-2: #e9f1ed; --card: #ffffff; --ink: #0f1a16;
+    --ink-2: #465a51; --ink-3: #6d8378; --line: #d2e0d8; --teal: #0a8f77; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
+    line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: clamp(1.4rem, 4vw, 3rem) clamp(1rem, 4vw, 2.2rem) 4rem; }
+
+  header { margin-bottom: 2.4rem; }
+  .eyebrow { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--teal); font-weight: 700; margin: 0 0 0.6rem; }
+  h1 { font-size: clamp(2rem, 6vw, 3.1rem); line-height: 1.02; margin: 0 0 0.7rem; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+  h1 .green { color: var(--teal); }
+  .lede { max-width: 60ch; color: var(--ink-2); font-size: 1.02rem; margin: 0; }
+
+  .get { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem 1rem; margin-top: 1.5rem; }
+  .cta { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--teal); color: #04140f;
+    text-decoration: none; font-weight: 750; font-size: 0.98rem; padding: 0.7rem 1.3rem; border-radius: 999px;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--teal) 35%, transparent); transition: transform 0.12s ease, box-shadow 0.12s ease; }
+  .cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px color-mix(in srgb, var(--teal) 45%, transparent); }
+  .cta:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
+  .cta .arrow { font-size: 1.05em; }
+  .get .hint { font-size: 0.84rem; color: var(--ink-2); max-width: 34ch; }
+  .get .hint b { color: var(--ink); font-weight: 600; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; margin-top: 1.4rem; padding-top: 1.2rem;
+    border-top: 1px solid var(--line); font-size: 0.82rem; color: var(--ink-2); }
+  .legend b { color: var(--ink); font-weight: 600; }
+  .swatch-dot { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; vertical-align: -1px; margin-right: 0.4rem; }
+
+  section { margin-top: 2.6rem; }
+  h2 { font-size: 1.28rem; margin: 0 0 0.3rem; font-weight: 750; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 0.6rem; }
+  h2 .n { font-family: var(--mono); font-size: 0.82rem; color: var(--teal); font-weight: 700;
+    border: 1px solid color-mix(in srgb, var(--teal) 45%, transparent); border-radius: 6px; padding: 0.05rem 0.4rem; }
+  .sub { color: var(--ink-3); font-size: 0.9rem; margin: 0 0 1.3rem; max-width: 66ch; }
+
+  .screens { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; }
+  @media (max-width: 760px) { .screens { grid-template-columns: 1fr; } }
+  .screen { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem; break-inside: avoid; }
+  .screen h3 { margin: 0 0 0.9rem; font-size: 1rem; font-weight: 700; }
+  .screen h3 span { color: var(--ink-3); font-weight: 500; }
+  .stage { display: flex; gap: 1.5rem; align-items: flex-start; }
+  @media (max-width: 420px) { .stage { flex-direction: column; align-items: center; } }
+
+  .phone { position: relative; flex: 0 0 190px; width: 190px; aspect-ratio: 9 / 18; margin: 34px; overflow: visible; font-family: var(--sans); }
+  .scr { position: absolute; inset: 0; border-radius: 22px; overflow: hidden; border: 3px solid #05100b; box-shadow: 0 10px 26px rgba(0,0,0,0.18); }
+  .callouts { flex: 1; min-width: 0; }
+  .callouts ol { margin: 0; padding-left: 0; list-style: none; counter-reset: c; }
+  .callouts li { position: relative; padding-left: 2rem; margin-bottom: 0.7rem; font-size: 0.86rem; line-height: 1.4; counter-increment: c; }
+  .callouts li::before { content: counter(c); position: absolute; left: 0; top: 0.05rem; width: 1.45rem; height: 1.45rem;
+    border-radius: 50%; background: var(--num); color: var(--num-ink); font-size: 0.76rem; font-weight: 800;
+    display: grid; place-items: center; font-family: var(--mono); }
+  .callouts li b { font-weight: 650; color: var(--ink); }
+
+  .pin { position: absolute; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--num); color: var(--num-ink);
+    font-size: 0.76rem; font-weight: 800; display: grid; place-items: center; font-family: var(--mono);
+    box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,0.35); z-index: 20; }
+  .pin::before { content: ""; position: absolute; background: var(--num); z-index: -1; }
+  .pin.side-l::before { top: 50%; left: 100%; width: var(--lead, 15px); height: 2px; transform: translateY(-50%); }
+  .pin.side-r::before { top: 50%; right: 100%; width: var(--lead, 15px); height: 2px; transform: translateY(-50%); }
+  .pin.side-t::before { left: 50%; top: 100%; width: 2px; height: var(--lead, 15px); transform: translateX(-50%); }
+  .pin.side-b::before { left: 50%; bottom: 100%; width: 2px; height: var(--lead, 15px); transform: translateX(-50%); }
+
+  .cover-bg { position: absolute; inset: 0; background: linear-gradient(to bottom, #00e1b9 0%, #00e1b9 35%, #ff3483 100%); }
+  .m-flame { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); width: 15px; height: 24%; border-radius: 999px;
+    background: linear-gradient(to top, #ff3483 0%, #ff3483 30%, rgba(255,52,131,0) 90%), #00e0ba; }
+  .m-ripple { position: absolute; top: 36%; left: 50%; transform: translate(-50%,-50%); width: 66px; height: 22px; border: 1.5px solid rgba(255,255,255,0.8); border-radius: 50%; }
+  .m-ripple::after { content:""; position:absolute; inset:-8px -18px; border:1.5px solid rgba(255,255,255,0.45); border-radius:50%; }
+  .m-enter { position: absolute; top: 47%; left: 50%; transform: translate(-50%,-50%); background: #1a1a1a; color: #00e4b9;
+    border: 1px solid #fff; border-radius: 999px; padding: 0.35rem 1.4rem; font-size: 0.7rem; letter-spacing: 0.08em; }
+  .m-tag { position: absolute; top: 62%; left: 50%; transform: translateX(-50%); width: 88%; text-align: center; color: #010302;
+    font-size: 0.56rem; font-weight: 700; text-transform: uppercase; line-height: 1.35; }
+  .m-band { position: absolute; bottom: 8%; left: -4%; right: -4%; height: 15px; background: #e5e5e5; transform: rotate(-3deg); overflow: hidden; display: flex; align-items: center; }
+  .m-band span { font-size: 0.42rem; color: #2a2a2a; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; padding-left: 6px; }
+  .m-abt { position: absolute; top: 4%; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid #ff3483; color: #ff3483; background: rgba(255,255,255,0.28); font-size: 0.62rem; font-weight: 800; display: grid; place-items: center; }
+
+  .play-bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 20%, #14261d 0%, #0b1410 70%); }
+  .play-bg::after { content:""; position:absolute; inset:0; background: repeating-linear-gradient(115deg, rgba(0,224,186,0.05) 0 8px, transparent 8px 22px); }
+  .m-hud { position: absolute; top: 6px; left: 6px; display: flex; gap: 3px; }
+  .m-hud i { font-style: normal; font-size: 0.4rem; padding: 2px 5px; border-radius: 999px; }
+  .m-hud .a { color: #00e0ba; border: 1px solid rgba(0,224,186,0.4); background: rgba(11,20,16,0.5); }
+  .m-hud .b { color: #ff3483; border: 1px solid rgba(255,52,131,0.5); background: rgba(145,0,141,0.3); }
+  .m-modewrap { position: absolute; top: 26px; left: 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .m-modewrap em { font-style: normal; font-size: 0.32rem; letter-spacing: 0.12em; color: rgba(0,224,186,0.75); font-weight: 700; }
+  .m-mode { display: flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(11,20,16,0.55); border: 1px solid rgba(0,224,186,0.35); }
+  .m-mode b { width: 12px; height: 12px; border-radius: 50%; font-size: 0.44rem; display: grid; place-items: center; color: rgba(0,224,186,0.75); font-weight: 700; }
+  .m-mode b.on { background: #00e0ba; color: #0b1410; }
+  .m-close { position: absolute; top: 6px; right: 6px; font-size: 0.42rem; color: #ff3483; border: 1px solid #ff3483; background: rgba(255,52,131,0.15); border-radius: 999px; padding: 2px 6px; font-weight: 600; }
+  .m-bank { position: absolute; top: 24px; right: 6px; font-size: 0.4rem; color: #00e0ba; border: 1px solid rgba(0,224,186,0.5); background: rgba(24,6,24,0.6); border-radius: 999px; padding: 2px 7px; text-transform: uppercase; }
+  .m-green { position: absolute; top: 46%; left: 50%; transform: translateX(-50%); color: #fff; font-size: 0.46rem; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  .m-random { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #14231c, #0b1410); border: 2px solid #701065; box-shadow: 0 0 0 2px rgba(1,221,205,0.5); }
+  .m-random::after { content:""; position:absolute; inset:0; margin:auto; width:6px; height:6px; border-radius:50%; background:#01ddcd; box-shadow: 6px -3px 0 -2px #f93671, -6px 3px 0 -2px #01ddcd; }
+  .m-pin { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 11px; height: 11px; border-radius: 50%; background: #fec402; border: 1.5px solid #f93671; }
+  .m-ctrl { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); font-size: 0.42rem; color: #00e0ba; border: 1px solid rgba(0,224,186,0.5); background: rgba(24,6,24,0.6); border-radius: 999px; padding: 2px 8px; text-transform: uppercase; }
+  .m-tapdot { position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid rgba(0,224,186,0.7); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 0.9rem; }
+  .item { display: grid; grid-template-columns: 64px 1fr; gap: 0.85rem; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.75rem 0.85rem; break-inside: avoid; }
+  .tile { width: 64px; height: 64px; border-radius: 10px; background: var(--app); display: grid; place-items: center; overflow: hidden; border: 1px solid #05100b; }
+  .item .name { font-weight: 680; font-size: 0.92rem; margin: 0 0 0.12rem; }
+  .item .desc { font-size: 0.82rem; color: var(--ink-2); margin: 0; line-height: 1.4; }
+
+  .chip { font-family: var(--sans); line-height: 1; }
+  .chip.pillP { color: #ff3483; border: 1px solid #ff3483; background: rgba(255,52,131,0.15); border-radius: 999px; padding: 4px 9px; font-size: 0.6rem; font-weight: 700; }
+  .chip.round { color: #00e0ba; border: 1px solid rgba(0,224,186,0.5); background: rgba(24,6,24,0.6); border-radius: 999px; padding: 4px 10px; font-size: 0.6rem; letter-spacing: 0.03em; }
+  .chip.round.rec { color: #ff3483; border-color: rgba(255,52,131,0.6); }
+  .chip.seg { display: flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(11,20,16,0.55); border: 1px solid rgba(0,224,186,0.35); }
+  .chip.seg b { width: 15px; height: 15px; border-radius: 50%; font-size: 0.55rem; display: grid; place-items: center; color: rgba(0,224,186,0.8); font-weight: 700; }
+  .chip.seg b.on { background: #00e0ba; color: #0b1410; }
+  .knob { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; position: relative; }
+  .knob svg { position: absolute; inset: 0; }
+  .knob span { font-size: 0.46rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .knob.t span { color: #00e0ba; } .knob.p span { color: #ff3483; }
+  .abtchip { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ff3483; color: #ff3483; background: rgba(255,255,255,0.22); font-size: 0.72rem; font-weight: 800; display: grid; place-items: center; }
+  .rndchip { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #14231c, #0b1410); border: 2px solid #701065; box-shadow: 0 0 0 2px rgba(1,221,205,0.5); position: relative; }
+  .rndchip::after { content:""; position:absolute; inset:0; margin:auto; width:5px; height:5px; border-radius:50%; background:#01ddcd; box-shadow: 6px -3px 0 -1px #f93671, -6px 3px 0 -1px #01ddcd; }
+  .pinchip { width: 15px; height: 15px; border-radius: 50%; background: #fec402; border: 2px solid #f93671; }
+  .notchchip { width: 34px; height: 16px; border: 1px solid rgba(0,224,186,0.5); background: rgba(0,224,186,0.12); border-radius: 999px; display: grid; place-items: center; }
+  .notchchip svg { width: 12px; height: 12px; }
+  .greenchip { color: #fff; font-size: 0.56rem; text-shadow: 0 1px 4px rgba(0,0,0,0.7); }
+  .resumechip { color: #00e0ba; font-size: 0.55rem; border: 1px solid #00e0ba; background: rgba(0,224,186,0.14); border-radius: 999px; padding: 4px 8px; }
+
+  footer { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 0.82rem; }
+  .hair { color: var(--teal); font-weight: 600; }
+
+  @media print {
+    :root { --paper:#fff; --paper-2:#f4f8f6; --card:#fff; --ink:#101a16; --ink-2:#3f524a; --line:#cdddd4; --teal:#0a8f77; }
+    body { background: #fff; }
+    .wrap { padding: 0.6rem 0.4rem; max-width: none; }
+    .screen, .item, section { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Product UI Reference</p>
+    <h1><span class="green">ListenGreen</span> — every control, and what it does</h1>
+    <p class="lede">A camera-to-sound instrument: point the phone at greenery and it becomes a live soundscape. This sheet maps each button and dial across the two screens — the Enter cover and the live Play screen — plus the controls drawer.</p>
+    <div class="get">
+      <a class="cta" href="https://waahwaah137.github.io/leaf-garden-2/" target="_blank" rel="noopener">Open ListenGreen <span class="arrow" aria-hidden="true">→</span></a>
+      <p class="hint">Opens in your browser. On a phone, tap <b>Share → Add to Home Screen</b> to install it like an app — no app store.</p>
+    </div>
+    <div class="legend">
+      <span><span class="swatch-dot" style="background:#0a8f77"></span><b>Teal</b> — primary UI: play, ambient &amp; timing controls</span>
+      <span><span class="swatch-dot" style="background:#ff3483"></span><b>Pink</b> — exit, the “find out more” invite &amp; tone/character dials</span>
+      <span><span class="swatch-dot" style="background:#fec402"></span><b>Yellow</b> — pin (keep a sound)</span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="n">A</span> The two screens</h2>
+    <p class="sub">Where things live. Numbers on each phone match the list beside it.</p>
+    <div class="screens">
+      <div class="screen">
+        <h3>Enter cover <span>— before you start</span></h3>
+        <div class="stage">
+          <div class="phone">
+            <div class="scr">
+              <div class="cover-bg"></div>
+              <div class="m-abt">?!</div>
+              <div class="m-ripple"></div>
+              <div class="m-flame"></div>
+              <div class="m-enter">Enter</div>
+              <div class="m-tag">Point at anything green.<br>It’s yours to play.</div>
+              <div class="m-band"><span>uses your camera &amp; speaker · best with rear camera ·</span></div>
+            </div>
+            <span class="pin side-t" style="top:0; left:50%; transform:translate(-50%,-118%); --lead:24px">1</span>
+            <span class="pin side-l" style="top:47%; left:0; transform:translate(-90%,-50%); --lead:50px">2</span>
+            <span class="pin side-l" style="bottom:9%; left:0; transform:translate(-90%,0); --lead:28px">3</span>
+          </div>
+          <div class="callouts">
+            <ol>
+              <li><b>?! — Find out more.</b> Optional. Opens a plain-language “what to expect” panel: nothing leaves your phone, no account, works offline. Gently pulses.</li>
+              <li><b>Enter.</b> Starts the experience — asks for the camera, then begins. (After a Close, this resumes.)</li>
+              <li><b>Info band.</b> Scrolling note: uses your camera &amp; speaker, best with the rear camera.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen">
+        <h3>Play screen <span>— the live instrument</span></h3>
+        <div class="stage">
+          <div class="phone">
+            <div class="scr">
+              <div class="play-bg"></div>
+              <div class="m-hud"><i class="a">form · hue · %</i><i class="b">tracking</i></div>
+              <div class="m-modewrap"><em>DRAG MODE</em><div class="m-mode"><b class="on">1</b><b>2</b><b>3</b></div></div>
+              <div class="m-close">Close LG</div>
+              <div class="m-bank">glass ▾</div>
+              <div class="m-green">find some green</div>
+              <div class="m-random"></div>
+              <div class="m-pin"></div>
+              <div class="m-ctrl">controls</div>
+              <div class="m-tapdot" style="top:34%; left:26%"></div>
+            </div>
+            <span class="pin side-t" style="top:0; left:15px; transform:translate(-50%,-118%); --lead:16px">1</span>
+            <span class="pin side-l" style="top:34px; left:0; transform:translate(-90%,0); --lead:26px">2</span>
+            <span class="pin side-t" style="top:0; right:15px; transform:translate(50%,-118%); --lead:16px">3</span>
+            <span class="pin side-r" style="top:30px; right:0; transform:translate(90%,0); --lead:34px">4</span>
+            <span class="pin side-l" style="top:46%; left:0; transform:translate(-90%,-50%); --lead:58px">5</span>
+            <span class="pin side-r" style="bottom:22%; right:0; transform:translate(90%,0); --lead:78px">6</span>
+            <span class="pin side-b" style="bottom:0; left:50%; transform:translate(-50%,118%); --lead:22px">7</span>
+          </div>
+          <div class="callouts">
+            <ol>
+              <li><b>HUD.</b> Live read-out of what the camera sees — leaf “form”, hue, and how much plant is in frame.</li>
+              <li><b>DRAG MODE 1 · 2 · 3.</b> Switches how touch position maps to sound (details in section C).</li>
+              <li><b>Close LG.</b> Exit — stops the camera, audio &amp; sensors and returns to the cover.</li>
+              <li><b>Bank.</b> Picks the sound bank (the instrument/voice). Opens a dropdown.</li>
+              <li><b>“find some green”.</b> Appears when there’s too little green in frame — the app stays silent until you point at greenery.</li>
+              <li><b>Random + pin.</b> Roll a new sound; the small yellow dot below pins the current one (section D).</li>
+              <li><b>controls.</b> Opens the knob drawer (section E).</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">B</span> Playing the screen</h2>
+    <p class="sub">The camera view is the instrument. There are no on-screen keys — you play the picture itself.</p>
+    <div class="grid">
+      <div class="item">
+        <div class="tile"><div class="m-tapdot" style="position:static"></div></div>
+        <div><p class="name">Tap</p><p class="desc">Plays a single in-scale note at the spot you touch. Pitch &amp; brightness follow the position (per the drag mode); tapping a detected leaf adds a brighter accent.</p></div>
+      </div>
+      <div class="item">
+        <div class="tile"><div style="width:34px;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(0,224,186,0),#00e0ba)"></div></div>
+        <div><p class="name">Drag</p><p class="desc">Press and move to play a soft, continuous texture that follows the leaf under your finger. The texture depends on the drag mode; it’s always quieter than a tap.</p></div>
+      </div>
+      <div class="item">
+        <div class="tile"><span class="greenchip">find some green</span></div>
+        <div><p class="name">No green = silence</p><p class="desc">If the frame has too little green, nothing sounds — by design. Point at a leaf, a bush, a tree and the instrument wakes up.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">C</span> DRAG MODE — the 1 · 2 · 3 pill</h2>
+    <p class="sub">One tap on the pill switches, live, both how position maps to pitch and which texture a drag makes. All three are in key.</p>
+    <div class="grid">
+      <div class="item">
+        <div class="tile"><span class="chip seg"><b class="on">1</b><b>2</b><b>3</b></span></div>
+        <div><p class="name">Mode 1 — Brush</p><p class="desc">Left→right = pitch, up→down = brightness. Drag brushes soft plucked grains, like rustling leaves — denser over jagged foliage and on faster swipes.</p></div>
+      </div>
+      <div class="item">
+        <div class="tile"><span class="chip seg"><b>1</b><b class="on">2</b><b>3</b></span></div>
+        <div><p class="name">Mode 2 — Wind</p><p class="desc">Left→right = pitch, up→down = octave. Drag is a pitched, airy “whistling wind”; the colour under your finger shapes how much it sings.</p></div>
+      </div>
+      <div class="item">
+        <div class="tile"><span class="chip seg"><b>1</b><b>2</b><b class="on">3</b></span></div>
+        <div><p class="name">Mode 3 — Bow</p><p class="desc">Up→down = pitch, left→right = brightness. Drag is a soft pad that steps cleanly through the scale; the leaf’s shape morphs its tone.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">D</span> Surprise &amp; keep</h2>
+    <p class="sub">The fast path to a sound you love, and a way to hold onto it.</p>
+    <div class="grid">
+      <div class="item">
+        <div class="tile"><span class="rndchip"></span></div>
+        <div><p class="name">Random button</p><p class="desc">Rolls a fresh, curated sound and applies it live — every roll is pleasant and different. The ring around it is a short cool-down before the next roll. (The app also opens on a random sound each launch.)</p></div>
+      </div>
+      <div class="item">
+        <div class="tile"><span class="pinchip"></span></div>
+        <div><p class="name">Pin (keep)</p><p class="desc">The small yellow dot below the button pins the current sound to your saved list, with a brief “pinned ✓” confirmation.</p></div>
+      </div>
+      <div class="item">
+        <div class="tile"><span class="chip round">pins</span></div>
+        <div><p class="name">pins (in the drawer)</p><p class="desc">Opens your saved sounds. Tap a row to replay it; the × on a row deletes it. Pins persist on this phone.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">E</span> The controls drawer</h2>
+    <p class="sub">Tap <span class="chip round" style="font-size:0.7rem; padding:2px 8px; vertical-align:middle">controls</span> to open the DAW-style drawer — nine dials plus an action row. The downward-arrow notch at the top closes it.</p>
+
+    <h3 style="font-size:0.95rem; margin:0 0 0.8rem; color:var(--ink-2); font-weight:650;">Dials</h3>
+    <div class="grid">
+      <div class="item"><div class="tile"><span class="knob t"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L22 8" stroke="#00e0ba" stroke-width="2.4" stroke-linecap="round"/></svg><span>volume</span></span></div><div><p class="name">volume</p><p class="desc">Master output level.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob p"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L33 15" stroke="#ff3483" stroke-width="2.4" stroke-linecap="round"/></svg><span>mode</span></span></div><div><p class="name">mode</p><p class="desc">The musical scale/mood — pentatonic, minor, dorian, lydian, whole-tone, phrygian.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob p"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L11 15" stroke="#ff3483" stroke-width="2.4" stroke-linecap="round"/></svg><span>pitch</span></span></div><div><p class="name">pitch</p><p class="desc">Transpose everything up or down, −12 to +12 semitones.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob p"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L22 8" stroke="#ff3483" stroke-width="2.4" stroke-linecap="round"/></svg><span>freq</span></span></div><div><p class="name">freq</p><p class="desc">Timbre / brightness — how open or dark the overall tone is.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob t"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L33 29" stroke="#00e0ba" stroke-width="2.4" stroke-linecap="round"/></svg><span>space</span></span></div><div><p class="name">space</p><p class="desc">Reverb — from close and dry to wide and cavernous.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob t"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L11 29" stroke="#00e0ba" stroke-width="2.4" stroke-linecap="round"/></svg><span>density</span></span></div><div><p class="name">density</p><p class="desc">How busy the texture is — sparse drips up to a full, active shimmer.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob t"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L30 11" stroke="#00e0ba" stroke-width="2.4" stroke-linecap="round"/></svg><span>tempo</span></span></div><div><p class="name">tempo</p><p class="desc">Beats per minute (50–140) for the rhythmic arpeggio.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob p"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L14 11" stroke="#ff3483" stroke-width="2.4" stroke-linecap="round"/></svg><span>sens</span></span></div><div><p class="name">sens</p><p class="desc">Camera sensitivity — how strongly leaf shape pushes the sound around.</p></div></div>
+      <div class="item"><div class="tile"><span class="knob p"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3"/><path d="M22 22 L22 36" stroke="#ff3483" stroke-width="2.4" stroke-linecap="round"/></svg><span>muse</span></span></div><div><p class="name">muse</p><p class="desc">Poem creativity — how adventurous the generative poem lines get.</p></div></div>
+    </div>
+
+    <h3 style="font-size:0.95rem; margin:1.6rem 0 0.8rem; color:var(--ink-2); font-weight:650;">Action row</h3>
+    <div class="grid">
+      <div class="item"><div class="tile"><span class="chip round">poem</span></div><div><p class="name">poem</p><p class="desc">Toggles the quiet generative poem layer that drifts in over the scene.</p></div></div>
+      <div class="item"><div class="tile"><span class="chip round">pins</span></div><div><p class="name">pins</p><p class="desc">Opens your saved sounds list (tap to replay, × to delete).</p></div></div>
+      <div class="item"><div class="tile"><span class="chip round rec">rec</span></div><div><p class="name">rec</p><p class="desc">Records a loop of what you’re playing.</p></div></div>
+      <div class="item"><div class="tile"><span class="chip round">save</span></div><div><p class="name">save</p><p class="desc">Shares or downloads the last recorded loop (with sound).</p></div></div>
+      <div class="item"><div class="tile"><span class="chip round">flip</span></div><div><p class="name">flip</p><p class="desc">Switches between the rear and front camera.</p></div></div>
+      <div class="item"><div class="tile"><span class="notchchip"><svg viewBox="0 0 24 24" fill="none" stroke="#00e0ba" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></span></div><div><p class="name">Close notch</p><p class="desc">The downward arrow at the top of the drawer — tap to slide the panel closed.</p></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">F</span> Leaving &amp; coming back</h2>
+    <p class="sub">Privacy first: the camera, sensors and sound run only while ListenGreen is the app you’re looking at.</p>
+    <div class="grid">
+      <div class="item"><div class="tile"><span class="chip pillP">Close LG</span></div><div><p class="name">Close LG</p><p class="desc">A clean exit. Stops the camera, audio and sensors and returns to the Enter cover — from there, swipe away to leave, or Enter to start again.</p></div></div>
+      <div class="item"><div class="tile"><span class="resumechip">tap to resume</span></div><div><p class="name">Auto-pause → tap to resume</p><p class="desc">Switch apps, lock the phone, or minimise, and everything stops immediately. When you return, a dim screen waits — the camera only turns back on when you tap.</p></div></div>
+      <div class="item"><div class="tile"><span class="abtchip">?!</span></div><div><p class="name">?! — Find out more</p><p class="desc">On the cover: the privacy &amp; what-to-expect panel, for anyone who wants the story before pressing Enter.</p></div></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="get" style="margin: 0 0 1.1rem;">
+      <a class="cta" href="https://waahwaah137.github.io/leaf-garden-2/" target="_blank" rel="noopener">Open ListenGreen <span class="arrow" aria-hidden="true">→</span></a>
+    </div>
+    <p><span class="hair">ListenGreen</span> — UI reference. Chips are rendered from the app’s own styles; the phone diagrams are schematic (positions are indicative). To save as PDF: use your browser’s <b>Print → Save as PDF</b>.</p>
+  </footer>
+</div>
+</body>
+</html>
