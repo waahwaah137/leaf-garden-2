@@ -41,7 +41,7 @@ import { attachStartButton, type StartFlowResult } from './ui/permissions';
 import { createPoet, type PoetryInput, type Structure } from './poetry/poet';
 import { getPhase } from './env/daytime';
 import { initPoemOverlay, showPoem, hidePoem } from './ui/poemOverlay';
-import { initRandomButton, pulseRandomButton, setRandomButtonHidden } from './ui/randomButton';
+import { initRandomButton, rollRandomButtonInitial, pulseRandomButton, setRandomButtonHidden } from './ui/randomButton';
 import { initPinnedDrawer, togglePinnedDrawer } from './ui/pinnedDrawer';
 import type { PresetConfig, Preset, Specimen } from './presets/preset';
 import { savePreset, countPresets } from './presets/presetStore';
@@ -201,6 +201,8 @@ function onExperienceReady(result: StartFlowResult): void {
     onApply: (s) => applyConfig(s.config),
     onPin: (s) => void pinSpecimen(s),
   });
+  // Open on a fresh, curated sound each launch — so it feels different every time, not the default.
+  rollRandomButtonInitial();
   // The pins list inside the controls drawer (tap a row to replay).
   const pinsPanel = document.getElementById('pins-panel');
   if (pinsPanel) initPinnedDrawer(pinsPanel, (cfg) => applyConfig(cfg));
