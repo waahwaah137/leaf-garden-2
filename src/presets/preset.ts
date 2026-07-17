@@ -25,8 +25,6 @@ export interface Preset {
   name: string;
   hueDeg: number; // colours the wheel card + (Phase C) the map dot
   createdAt: number;
-  /** Phase C: the Cubbon landmark this pin lives at (a landmark id — never raw coordinates). */
-  place?: { landmarkId: string };
 }
 
 export const MODE_COUNT = 6; // keep in sync with MODE_NAMES in scales.ts
