@@ -100,6 +100,10 @@ loadOpenCv().catch((err) => console.warn('OpenCV unavailable, using heuristic:',
 initDashboard();
 initPoemOverlay();
 
+// Splash image behind the Enter cover. Base-aware so it resolves under the GitHub Pages subpath.
+const coverBg = document.getElementById('cover-bg') as HTMLImageElement | null;
+if (coverBg) coverBg.src = `${import.meta.env.BASE_URL}Splash_BG_01.png`;
+
 // Load the Glipervelz-Origy dingbat for the poem's data-matrix cipher. FontFace API is base-aware
 // (works under /leaf-garden-2/ on Pages) and sidesteps the space in the filename.
 if (typeof FontFace !== 'undefined') {

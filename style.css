@@ -917,6 +917,18 @@ body {
   pointer-events: none;
 }
 
+/* Full-bleed splash image behind the cover (over the CSS gradient fallback, under .cover). */
+.cover-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+}
+
 .cover {
   position: absolute;
   inset: 0;
@@ -970,13 +982,14 @@ body {
 
 /* Ripple at the flame's base (top 9% + height 26% ≈ 35%): faint rings emanate + fade outward,
    like the pill is dipping into water. Sits behind the flame so the pill stands "in" the rings. */
+/* Gentle "drop" ripple: concentric rings expand from the centre and fade out (progressive opacity). */
 .cover-ripple {
   position: absolute;
-  top: 35%;
+  top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(220px, 34vw);
-  height: min(74px, 11vw);
+  width: min(360px, 74vw);
+  aspect-ratio: 3 / 1; /* flattened → the angled, on-a-surface perspective look */
   z-index: 0;
   pointer-events: none;
 }
@@ -984,36 +997,44 @@ body {
 .cover-ripple span {
   position: absolute;
   inset: 0;
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  margin: auto;
+  width: 0;
+  height: 0;
   border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
   opacity: 0;
-  transform: scale(0.4);
-  animation: cover-ripple-expand 3.6s ease-out infinite;
+  animation: cover-drop 5s ease-out infinite;
 }
 
 .cover-ripple span:nth-child(2) {
-  animation-delay: 1.2s;
+  animation-delay: 1.25s;
 }
 
 .cover-ripple span:nth-child(3) {
-  animation-delay: 2.4s;
+  animation-delay: 2.5s;
 }
 
-@keyframes cover-ripple-expand {
+.cover-ripple span:nth-child(4) {
+  animation-delay: 3.75s;
+}
+
+@keyframes cover-drop {
   0% {
-    opacity: 1;
-    transform: scale(0.4);
+    width: 0;
+    height: 0;
+    opacity: 0.6;
   }
   100% {
+    width: 100%;
+    height: 100%;
     opacity: 0;
-    transform: scale(1.3);
   }
 }
 
 /* Enter — 90%-dark pill, teal label, thin white stroke, drop shadow + a soft pulsing glow. */
 #start-button.cover-enter {
   position: absolute;
-  top: 46%;
+  top: calc(46% + 20px);
   left: 50%;
   transform: translate(-50%, -50%);
   min-width: 62%;
@@ -1075,18 +1096,57 @@ body {
 
 .cover-tagline {
   position: absolute;
-  top: 59%;
+  top: 58%;
   left: 50%;
   transform: translateX(-50%);
   margin: 0;
   width: 90%;
   text-align: center;
   color: #010302;
-  font-weight: 600;
-  font-size: clamp(1rem, 4.6vw, 1.35rem);
-  line-height: 1.4;
+  font-weight: 700;
+  font-size: clamp(1.05rem, 5vw, 1.45rem);
+  line-height: 1.32;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+/* Explanatory subline under the tagline (sentence case, lighter). */
+.cover-subline {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  width: 78%;
+  max-width: 30ch;
+  text-align: center;
+  color: #010302;
+  font-weight: 500;
+  font-size: clamp(0.82rem, 3.4vw, 1rem);
+  line-height: 1.42;
+  opacity: 0.82;
+}
+
+/* Permission heads-up — so people don't dismiss the camera prompt and think it's broken. */
+.cover-perm {
+  position: absolute;
+  top: 78%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  width: 82%;
+  max-width: 34ch;
+  text-align: center;
+  color: #010302;
+  font-weight: 500;
+  font-size: clamp(0.7rem, 3vw, 0.86rem);
+  line-height: 1.4;
+  opacity: 0.68;
+}
+
+.cover-perm b {
+  font-weight: 700;
+  opacity: 1;
 }
 
 /* Light band near the bottom; the camera line scrolls slowly across it. */
@@ -1158,16 +1218,16 @@ body {
   /* translateX(-50%) is folded into the pulse keyframes so both transforms coexist. */
   transform: translateX(-50%);
   z-index: 7;
-  min-width: 48px;
-  height: 48px;
+  min-width: 54px;
+  height: 54px;
   padding: 0 0.6rem;
   border-radius: 999px;
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: #ff3483;
-  background: rgba(255, 255, 255, 0.28);
-  border: 2px solid #ff3483;
+  color: #00e0ba;
+  background: rgba(11, 20, 16, 0.72);
+  border: 2.5px solid #00e0ba;
   backdrop-filter: blur(6px);
   cursor: pointer;
   animation: about-pulse 1.7s ease-in-out infinite;
@@ -1178,11 +1238,11 @@ body {
   0%,
   100% {
     transform: translateX(-50%) scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 52, 131, 0);
+    box-shadow: 0 0 0 0 rgba(0, 224, 186, 0);
   }
   50% {
     transform: translateX(-50%) scale(1.14);
-    box-shadow: 0 0 18px 4px rgba(255, 52, 131, 0.5);
+    box-shadow: 0 0 18px 4px rgba(0, 224, 186, 0.55);
   }
 }
 
